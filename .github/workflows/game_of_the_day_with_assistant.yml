@@ -1,0 +1,35 @@
+name: Generate Game of the Day with Assistant
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # every day at midnight UTC
+  workflow_dispatch:      # allows manual triggering from GitHub UI
+
+jobs:
+  generate_game:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install openai
+
+      - name: Generate Game using OpenAI Assistant
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python .github/scripts/generate_game_with_assistant.py
+
+      - name: Commit and push new game
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add games/
+          git commit -m "Add new game of the day"
+          git push origin main
