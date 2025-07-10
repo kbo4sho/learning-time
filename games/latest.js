@@ -65,7 +65,11 @@ class Player {
     ctx.arc(this.pos.x - 7 + offsetX, eyeY, 4, 0, 2 * Math.PI);
     ctx.arc(this.pos.x + 7 + offsetX, eyeY, 4, 0, 2 * Math.PI);
     ctx.fill();
+    
+    // pupils with direction
     ctx.fillStyle = 'black';
+    const pupilOffset = this.size * 0.02; // How far pupils can move
+    // Left eye pupil
     ctx.beginPath();
     ctx.arc(this.pos.x - 7 + offsetX, eyeY, 2, 0, 2 * Math.PI);
     ctx.arc(this.pos.x + 7 + offsetX, eyeY, 2, 0, 2 * Math.PI);
