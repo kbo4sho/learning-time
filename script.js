@@ -32,6 +32,10 @@ window.addEventListener('DOMContentLoaded', function () {
 
     // Initialize daily games section
     initializeDailyGames();
+    // Add the date message for today
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0];
+    setDateMessage(todayString);
 });
 
 // Daily Games functionality
@@ -79,17 +83,25 @@ function initializeDailyGames() {
     // Render the cards with spacers at the start and end
     container.innerHTML =
         '<div class="daily-game-spacer"></div>' +
-        cards.map(card => `
-            <div class="daily-game-card ${card.isToday ? 'today active' : ''} ${card.status === 'future' ? 'future' : ''}" 
-                 onclick="${card.status === 'future' ? 'return false' : `loadDailyGame('${card.date}'); console.log('Clicked daily game: ${card.date}');`}">
-                <h4>Day ${card.date}</h4>
-                <div class="date">${card.formattedDate}</div>
-                <div class="status ${card.status}">
-                    ${card.status === 'today' ? 'TODAY' : 
-                      card.status === 'available' ? 'PLAY' : 'COMING SOON'}
+        cards.map(card => {
+            // Format date as MM-DD-YY for the lower date
+            const dateObj = new Date(card.date);
+            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const dd = String(dateObj.getDate()).padStart(2, '0');
+            const yy = String(dateObj.getFullYear()).slice(-2);
+            const mmddyy = `${mm}-${dd}-${yy}`;
+            return `
+                <div class="daily-game-card ${card.isToday ? 'today active' : ''} ${card.status === 'future' ? 'future' : ''}" 
+                     onclick="${card.status === 'future' ? 'return false' : `loadDailyGame('${card.date}'); console.log('Clicked daily game: ${card.date}');`}">
+                    <h4>${card.formattedDate}</h4>
+                    <div class="date">${mmddyy}</div>
+                    <div class="status ${card.status}">
+                        ${card.status === 'today' ? 'TODAY' : 
+                          card.status === 'available' ? 'PLAY' : 'COMING SOON'}
+                    </div>
                 </div>
-            </div>
-        `).join('') +
+            `;
+        }).join('') +
         '<div class="daily-game-spacer"></div>';
 
     // Activate and center today's card on page load
@@ -105,6 +117,25 @@ function formatDate(date) {
     return date.toLocaleDateString('en-US', options);
 }
 
+function setDateMessage(dateString) {
+    const gameSubtitle = document.querySelector('.game-of-the-day-stage p');
+    // Remove any existing date message
+    const existingDateMsg = document.querySelector('.date-message');
+    if (existingDateMsg) existingDateMsg.remove();
+    // Determine if dateString is today
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0];
+    const dateMsg = document.createElement('div');
+    dateMsg.className = 'date-message';
+    dateMsg.style.cssText = 'color: var(--text-secondary); font-size: 0.7rem; font-weight: 300; opacity: 0.6; font-style: italic; text-align: center; margin-bottom: 1.2rem; margin-top: 0.5rem;';
+    if (dateString === todayString) {
+        dateMsg.textContent = `Playing today's challenge`;
+    } else {
+        dateMsg.textContent = `Playing the challenge for ${dateString}`;
+    }
+    gameSubtitle.insertAdjacentElement('afterend', dateMsg);
+}
+
 function loadDailyGame(dateString) {
     console.log('loadDailyGame called with:', dateString);
     
@@ -113,33 +144,17 @@ function loadDailyGame(dateString) {
     const gameTitle = document.querySelector('.game-of-the-day-stage h2');
     const gameSubtitle = document.querySelector('.game-of-the-day-stage p');
     
-    // Update the title and subtitle
-    const date = new Date(dateString);
-    const formattedDate = date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
-    
-    gameTitle.textContent = `Daily Challenge - ${formattedDate}`;
-    gameSubtitle.textContent = `Playing the challenge for ${dateString}`;
-    
-    // Remove any existing back button first
-    const existingBackButton = document.querySelector('.back-to-today-btn');
-    if (existingBackButton) {
-        existingBackButton.remove();
-    }
-    
-    // Add a "Back to Today" button
-    const backButton = document.createElement('button');
-    backButton.textContent = '← Back to Today\'s Game';
-    backButton.className = 'back-to-today-btn';
-    backButton.onclick = loadTodaysGame;
-    
-    // Insert the back button after the subtitle
-    gameSubtitle.insertAdjacentElement('afterend', backButton);
-    
+    // Always keep the header and subtitle
+    gameTitle.textContent = 'Game of the Day';
+    gameSubtitle.textContent = 'a new AI-generated game each day.';
+
+    // Remove any existing date message
+    const existingDateMsg = document.querySelector('.date-message');
+    if (existingDateMsg) existingDateMsg.remove();
+
+    // Add a date message below the subtitle
+    setDateMessage(dateString);
+
     // Clear the current game stage
     gameStage.innerHTML = '<div class="loading">Loading game...</div>';
     
@@ -150,40 +165,49 @@ function loadDailyGame(dateString) {
     // Update the active card in the timeline
     updateActiveCard(dateString);
     
-    // Load the selected daily game using fetch and wrap in function scope
-    fetch(`games/${dateString}.js`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.text();
-        })
-        .then(scriptContent => {
-            console.log(`Successfully loaded daily game: ${dateString}`);
-            
-            // Wrap the script content in a function to isolate variables
-            const wrappedScript = `
-                (function() {
-                    ${scriptContent}
-                })();
-            `;
-            
-            // Create a new script element with the wrapped content
-            const script = document.createElement('script');
-            script.textContent = wrappedScript;
-            
-            // Execute the script
-            document.head.appendChild(script);
-        })
-        .catch(error => {
-            console.error(`Failed to load daily game: ${dateString}`, error);
-            gameStage.innerHTML = `
-                <div class="error-message">
-                    <p>This daily challenge is not available yet.</p>
-                    <p>Check back later or try a different date!</p>
-                </div>
-            `;
-        });
+    // Delay game loading by 500ms to allow card animation to complete
+    setTimeout(() => {
+        // Add purple class to active card after 500ms
+        const activeCard = document.querySelector('.daily-game-card.active');
+        if (activeCard) {
+            activeCard.classList.add('purple');
+        }
+
+        // Load the selected daily game using fetch and wrap in function scope
+        fetch(`games/${dateString}.js`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(scriptContent => {
+                console.log(`Successfully loaded daily game: ${dateString}`);
+                
+                // Wrap the script content in a function to isolate variables
+                const wrappedScript = `
+                    (function() {
+                        ${scriptContent}
+                    })();
+                `;
+                
+                // Create a new script element with the wrapped content
+                const script = document.createElement('script');
+                script.textContent = wrappedScript;
+                
+                // Execute the script
+                document.head.appendChild(script);
+            })
+            .catch(error => {
+                console.error(`Failed to load daily game: ${dateString}`, error);
+                gameStage.innerHTML = `
+                    <div class="error-message">
+                        <p>This daily challenge is not available yet.</p>
+                        <p>Check back later or try a different date!</p>
+                    </div>
+                `;
+            });
+    }, 500);
 }
 
 function loadTodaysGame() {
@@ -192,16 +216,14 @@ function loadTodaysGame() {
     const gameTitle = document.querySelector('.game-of-the-day-stage h2');
     const gameSubtitle = document.querySelector('.game-of-the-day-stage p');
     
-    // Reset title and subtitle
+    // Always keep the header and subtitle
     gameTitle.textContent = 'Game of the Day';
     gameSubtitle.textContent = 'a new AI-generated game each day.';
-    
-    // Remove the back button
-    const backButton = document.querySelector('.back-to-today-btn');
-    if (backButton) {
-        backButton.remove();
-    }
-    
+
+    // Remove any existing date message
+    const existingDateMsg = document.querySelector('.date-message');
+    if (existingDateMsg) existingDateMsg.remove();
+
     // Clear the current game stage
     gameStage.innerHTML = '';
     
@@ -250,16 +272,26 @@ function loadTodaysGame() {
 }
 
 function updateActiveCard(dateString) {
-    // Remove active and plugged-in classes from all cards
+    // Remove active and plugged-in classes from all cards and reset button text
     const allCards = document.querySelectorAll('.daily-game-card');
     allCards.forEach(card => {
-        card.classList.remove('active', 'plugged-in');
+        card.classList.remove('active', 'plugged-in'); // removed 'purple'
+        // Reset button text to original state
+        const statusElement = card.querySelector('.status');
+        if (statusElement) {
+            if (statusElement.classList.contains('available')) {
+                statusElement.textContent = 'PLAY';
+            } else if (statusElement.classList.contains('today')) {
+                statusElement.textContent = 'TODAY';
+            }
+        }
     });
 
     // Find the card that matches the current game
     const targetCard = document.querySelector(`[onclick*="${dateString}"]`);
     if (targetCard) {
         targetCard.classList.add('active');
+        // No more button text or color change
 
         // Center the card under the plug (center of game area)
         const container = document.getElementById('daily-games-container');

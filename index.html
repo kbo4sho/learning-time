@@ -11,7 +11,7 @@
         :root {
             --primary-color: #6C63FF;
             --secondary-color: #00F5FF;
-            --accent-color: #FF6B6B;
+            --accent-color: #FFB300;
             --background-color: #0A0A1F;
             --card-bg: #1A1A2E;
             --text-primary: #FFFFFF;
@@ -159,7 +159,7 @@
             background: var(--card-bg);
             border-radius: 32px;
             box-shadow: 0 12px 48px 0 rgba(0,0,0,0.55), 0 0 32px 4px var(--primary-color);
-            padding: 2.5rem 3rem 3rem 3rem;
+            padding: 2.5rem 3rem 0rem 3rem;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -184,9 +184,33 @@
             justify-content: center;
             background: #18182e;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            /* box-shadow: 0 4px 8px rgba(0,0,0,0.15); */
+            /* box-shadow: inset 0 0 32px 0 rgba(0,0,0,0.45); */
             margin: 0 auto;
             overflow: hidden;
+            position: relative;
+        }
+        #game-of-the-day-stage::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 8px;
+            box-shadow: inset 0 0 32px 0 rgba(0,0,0,0.45);
+            pointer-events: none;
+            z-index: 1;
+        }
+        #game-of-the-day-stage::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 8px;
+            box-shadow: inset 0 0 32px 0 rgba(0,0,0,0.45);
+            pointer-events: none;
+            z-index: 10;
+        }
+        #game-of-the-day-stage > * {
+            position: relative;
+            z-index: 2;
         }
         .hall-of-fame-header {
             display: flex;
@@ -261,8 +285,8 @@
 
         .daily-games-section {
             max-width: 1400px;
-            margin: 3rem auto 2rem auto;
-            padding: 0 1rem;
+            margin: 0;
+            padding: 2.5rem 0 0 0;
         }
 
         .daily-games-section h3 {
@@ -309,21 +333,42 @@
         }
 
         .daily-game-card {
-            background: var(--card-bg);
+            background: rgba(26,26,46,0.85);
             border-radius: 20px;
-            padding: 1.2rem;
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            transition: all 0.4s ease;
-            cursor: pointer;
-            border: 2px solid rgba(108, 99, 255, 0.2);
-            position: relative;
             overflow: hidden;
-            min-width: 140px;
+            box-shadow: 0 4px 16px 0 rgba(0,0,0,0.10);
+            border: 1.5px solid rgba(255,255,255,0.18);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            aspect-ratio: 2/3;
+            backdrop-filter: blur(12px);
+            padding: 1.2rem;
+            min-width: 80px;
             max-width: 160px;
+            text-align: center;
             z-index: 2;
-            backdrop-filter: blur(10px);
             scroll-snap-align: center;
+            display: flex;
+            flex-direction: column;
+        }
+        .daily-game-card h4,
+        .daily-game-card .status,
+        .daily-game-card .date {
+            color: #f5f5fa;
+            font-weight: 400;
+        }
+        .daily-game-card .date {
+            font-family: 'Roboto Mono', 'Menlo', 'Consolas', monospace;
+            letter-spacing: 0.04em;
+            color: #c7cbe6;
+            font-size: 0.75rem;
+            margin-bottom: 0.8rem;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+        .daily-game-card .status {
+            margin-top: auto;
         }
 
         .daily-game-card::before {
@@ -336,20 +381,6 @@
             background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
         }
 
-        .daily-game-card::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 12px;
-            height: 12px;
-            background: var(--card-bg);
-            border: 2px solid var(--primary-color);
-            border-radius: 50%;
-            z-index: 3;
-        }
-
         .daily-game-card:hover {
             transform: translateY(-5px) scale(1.05);
             box-shadow: 0 12px 40px rgba(108, 99, 255, 0.4);
@@ -357,16 +388,16 @@
         }
 
         .daily-game-card.today {
-            border-color: var(--accent-color);
-            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.2);
+            /* border-color: var(--accent-color); */
+            /* box-shadow: 0 4px 20px rgba(255, 107, 107, 0.2); */
         }
 
         .daily-game-card.today::before {
-            background: linear-gradient(90deg, var(--accent-color), #FF8E53);
+            /* background: linear-gradient(90deg, var(--accent-color), #FF8E53); */
         }
 
         .daily-game-card.today::after {
-            border-color: var(--accent-color);
+            /* border-color: var(--accent-color); */
         }
 
         .daily-game-card.active {
@@ -382,17 +413,7 @@
         .daily-game-card.active::before {
             background: linear-gradient(90deg, var(--secondary-color), var(--primary-color));
             height: 6px;
-        }
-
-        .daily-game-card.active::after {
-            width: 16px;
-            height: 16px;
-            border-color: var(--secondary-color);
-            box-shadow: 0 0 15px var(--secondary-color);
-        }
-
-        .daily-game-card.active h4 {
-            font-size: 1.1rem;
+            transition: background 0.5s ease-in-out;
         }
 
         .daily-game-card.active .date {
@@ -405,7 +426,7 @@
         }
 
         /* Special styling for today's card when it's active */
-        .daily-game-card.today.active {
+        /* .daily-game-card.today.active {
             border-color: var(--accent-color);
             box-shadow: 0 12px 48px 0 rgba(0,0,0,0.55), 0 0 32px 4px var(--accent-color);
         }
@@ -417,7 +438,7 @@
         .daily-game-card.today.active::after {
             border-color: var(--accent-color);
             box-shadow: 0 0 15px var(--accent-color);
-        }
+        } */
 
         .daily-game-card.future {
             opacity: 0.6;
@@ -469,9 +490,10 @@
         }
 
         .daily-game-card .status.available {
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-            color: #fff;
-            border: none;
+            background: rgba(108, 99, 255, 0.08); /* subtle translucent background */
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+            transition: background 0.3s, color 0.3s, border 0.3s;
         }
 
         .daily-game-card .status.today {
@@ -482,6 +504,13 @@
         .daily-game-card .status.future {
             background: rgba(158, 158, 158, 0.2);
             color: #9E9E9E;
+        }
+
+        .daily-game-card.active .status.available {
+            /* background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)); */
+            color: #fff;
+            
+            transition: background 0.5s ease-in-out;
         }
 
         .back-to-today-btn {
@@ -529,9 +558,10 @@
             position: absolute;
             top: 100%;
             left: 50%;
-            transform: translateX(-50%);
-            width: 180px;
-            height: 22px;
+            transform: translateX(calc(-50% - 2px));
+            width: 230px;
+            height: 82px;
+            opacity: 00%;
             background: linear-gradient(
                 to bottom,
                 #3a2e6c 0%,
@@ -542,7 +572,7 @@
             box-shadow:
                 0 4px 16px 0 var(--primary-color),
                 0 1px 0 0 #fff2 inset;
-            z-index: 10;
+            z-index: 40;
             border-top: 3px solid #fff2;
             border-bottom: 2px solid #18182e;
             pointer-events: none;
@@ -610,19 +640,16 @@
     <!-- Game of the Day Stage -->
     <div class="game-of-the-day-stage" style="position: relative;">
         <h2>Game of the Day</h2>
-        <p style="margin-top: -0.5rem; margin-bottom: 1.2rem; color: var(--text-secondary); font-size: 1rem; font-style: italic; text-align: center; max-width: 90%;">
+        <p style="margin-top: -0.5rem; margin-bottom: 0rem; color: var(--text-secondary); font-size: 1rem; font-style: italic; text-align: center; max-width: 90%;">
             a new AI-generated game each     day.
         </p>
         <div id="game-of-the-day-stage"></div>
         <div id="card-port"></div>
-    </div>
-
-    <!-- Daily Games Section -->
-    <div class="daily-games-section">
-        <div class="daily-games-container" id="daily-games-container">
-            <!-- Daily game cards will be populated by JavaScript -->
+        <div class="daily-games-section">
+            <div class="daily-games-container" id="daily-games-container">
+                <!-- Daily game cards will be populated by JavaScript -->
+            </div>
         </div>
-        <h3>Daily Challenges</h3>
     </div>
 
     <!-- Hall of Fame Header -->
