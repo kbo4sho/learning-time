@@ -163,8 +163,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            border: 2px solid var(--primary-color);
+            border: none;
             position: relative;
+            margin-bottom: 0.5rem;
+            overflow: visible;
         }
         .game-of-the-day-stage h2 {
             font-family: 'Orbitron', sans-serif;
@@ -181,11 +183,379 @@
             align-items: center;
             justify-content: center;
             background: #18182e;
-            border-radius: 16px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
             margin: 0 auto;
             overflow: hidden;
         }
+        .hall-of-fame-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 4rem auto 2rem auto;
+            max-width: 800px;
+            padding: 0 2rem;
+            position: relative;
+        }
+
+        .hall-of-fame-header h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-align: center;
+            margin: 0;
+            letter-spacing: 3px;
+            text-shadow: 0 0 20px rgba(108, 99, 255, 0.5);
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            z-index: 2;
+        }
+
+        .header-decoration {
+            flex: 1;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+            position: relative;
+            margin: 0 2rem;
+        }
+
+        .header-decoration::before,
+        .header-decoration::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 0 10px var(--primary-color);
+        }
+
+        .header-decoration.left::before {
+            left: 0;
+        }
+
+        .header-decoration.left::after {
+            right: 0;
+        }
+
+        .header-decoration.right::before {
+            left: 0;
+        }
+
+        .header-decoration.right::after {
+            right: 0;
+        }
+
+        .header-decoration.left {
+            background: linear-gradient(90deg, transparent, var(--primary-color));
+        }
+
+        .header-decoration.right {
+            background: linear-gradient(90deg, var(--primary-color), transparent);
+        }
+
+        .daily-games-section {
+            max-width: 1400px;
+            margin: 3rem auto 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .daily-games-section h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            color: var(--secondary-color);
+            text-align: center;
+            margin-top: 2rem;
+            margin-bottom: 0;
+            letter-spacing: 1px;
+            text-shadow: 0 0 15px rgba(0, 245, 255, 0.3);
+        }
+
+        .daily-games-container {
+            display: flex;
+            padding: 3.5rem 0;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            scroll-snap-type: x mandatory;
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            gap: 1rem; /* You can reduce or remove this if it causes issues */
+            border: none;
+        }
+
+        .daily-games-container::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                var(--primary-color) 20%, 
+                var(--secondary-color) 50%, 
+                var(--primary-color) 80%, 
+                transparent 100%);
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+
+        .daily-game-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 1.2rem;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s ease;
+            cursor: pointer;
+            border: 2px solid rgba(108, 99, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+            min-width: 140px;
+            max-width: 160px;
+            z-index: 2;
+            backdrop-filter: blur(10px);
+            scroll-snap-align: center;
+        }
+
+        .daily-game-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .daily-game-card::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 12px;
+            height: 12px;
+            background: var(--card-bg);
+            border: 2px solid var(--primary-color);
+            border-radius: 50%;
+            z-index: 3;
+        }
+
+        .daily-game-card:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 12px 40px rgba(108, 99, 255, 0.4);
+            border-color: var(--primary-color);
+        }
+
+        .daily-game-card.today {
+            border-color: var(--accent-color);
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.2);
+        }
+
+        .daily-game-card.today::before {
+            background: linear-gradient(90deg, var(--accent-color), #FF8E53);
+        }
+
+        .daily-game-card.today::after {
+            border-color: var(--accent-color);
+        }
+
+        .daily-game-card.active {
+            transition: transform 0.18s cubic-bezier(.4,1.3,.6,1), box-shadow 0.18s, border-color 0.18s;
+            transform: scale(1.13);
+            z-index: 20;
+        }
+        .daily-game-card.active.plugged-in {
+            transition: transform 0.32s cubic-bezier(.4,1.3,.6,1);
+            transform: scale(1.13) translateY(-32px);
+        }
+
+        .daily-game-card.active::before {
+            background: linear-gradient(90deg, var(--secondary-color), var(--primary-color));
+            height: 6px;
+        }
+
+        .daily-game-card.active::after {
+            width: 16px;
+            height: 16px;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 15px var(--secondary-color);
+        }
+
+        .daily-game-card.active h4 {
+            font-size: 1.1rem;
+        }
+
+        .daily-game-card.active .date {
+            font-size: 0.85rem;
+        }
+
+        .daily-game-card.active .status {
+            font-size: 0.75rem;
+            padding: 0.3rem 0.7rem;
+        }
+
+        /* Special styling for today's card when it's active */
+        .daily-game-card.today.active {
+            border-color: var(--accent-color);
+            box-shadow: 0 12px 48px 0 rgba(0,0,0,0.55), 0 0 32px 4px var(--accent-color);
+        }
+
+        .daily-game-card.today.active::before {
+            background: linear-gradient(90deg, var(--accent-color), #FF8E53);
+        }
+
+        .daily-game-card.today.active::after {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 15px var(--accent-color);
+        }
+
+        .daily-game-card.future {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .daily-game-card.future:hover {
+            transform: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .daily-game-card h4 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            color: var(--text-primary);
+            margin: 0 0 0.3rem 0;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+        }
+
+        .daily-game-card .date {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.8rem;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+
+        .daily-game-card .status {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .daily-game-card.today h4 {
+            font-size: 1.1rem;
+        }
+
+        .daily-game-card.today .date {
+            font-size: 0.8rem;
+        }
+
+        .daily-game-card.today .status {
+            font-size: 0.75rem;
+            padding: 0.3rem 0.7rem;
+        }
+
+        .daily-game-card .status.available {
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            color: #fff;
+            border: none;
+        }
+
+        .daily-game-card .status.today {
+            background: rgba(255, 107, 107, 0.2);
+            color: var(--accent-color);
+        }
+
+        .daily-game-card .status.future {
+            background: rgba(158, 158, 158, 0.2);
+            color: #9E9E9E;
+        }
+
+        .back-to-today-btn {
+            background: rgba(108, 99, 255, 0.1);
+            color: var(--text-secondary);
+            border: 1px solid rgba(108, 99, 255, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: -0.5rem;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 10;
+        }
+
+        .back-to-today-btn:hover {
+            background: rgba(108, 99, 255, 0.2);
+            color: var(--text-primary);
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(108, 99, 255, 0.2);
+        }
+
+        .loading {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            text-align: center;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .error-message {
+            color: var(--accent-color);
+            font-size: 1.2rem;
+            text-align: center;
+            margin: 2rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #card-port {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 22px;
+            background: linear-gradient(
+                to bottom,
+                #3a2e6c 0%,
+                var(--primary-color) 60%,
+                #18182e 100%
+            );
+            border-radius: 0 0 12px 12px / 0 0 8px 8px;
+            box-shadow:
+                0 4px 16px 0 var(--primary-color),
+                0 1px 0 0 #fff2 inset;
+            z-index: 10;
+            border-top: 3px solid #fff2;
+            border-bottom: 2px solid #18182e;
+            pointer-events: none;
+            display: block;
+        }
+
+        .daily-game-spacer {
+            flex: 0 0 50%;
+            height: 1px;
+            pointer-events: none;
+            background: transparent;
+        }
+
         @media (max-width: 800px) {
             #game-of-the-day-stage {
                 width: 100%;
@@ -197,6 +567,37 @@
                 max-width: 98vw;
                 padding: 1.5rem 0.5rem 2rem 0.5rem;
             }
+            .hall-of-fame-header {
+                margin: 3rem auto 1.5rem auto;
+                padding: 0 1rem;
+            }
+            .hall-of-fame-header h2 {
+                font-size: 2rem;
+                letter-spacing: 2px;
+            }
+            .header-decoration {
+                margin: 0 1rem;
+            }
+            .daily-games-container {
+                gap: 0.5rem;
+                padding: 1rem 0;
+            }
+            .daily-game-card {
+                padding: 1rem;
+                min-width: 120px;
+                max-width: 140px;
+            }
+            .daily-game-card.today {
+                min-width: 140px;
+                max-width: 160px;
+                padding: 1.2rem;
+            }
+            .daily-game-card h4 {
+                font-size: 0.9rem;
+            }
+            .daily-game-card.today h4 {
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
@@ -207,12 +608,28 @@
     </div>
 
     <!-- Game of the Day Stage -->
-    <div class="game-of-the-day-stage">
+    <div class="game-of-the-day-stage" style="position: relative;">
         <h2>Game of the Day</h2>
         <p style="margin-top: -0.5rem; margin-bottom: 1.2rem; color: var(--text-secondary); font-size: 1rem; font-style: italic; text-align: center; max-width: 90%;">
             a new AI-generated game each     day.
         </p>
         <div id="game-of-the-day-stage"></div>
+        <div id="card-port"></div>
+    </div>
+
+    <!-- Daily Games Section -->
+    <div class="daily-games-section">
+        <div class="daily-games-container" id="daily-games-container">
+            <!-- Daily game cards will be populated by JavaScript -->
+        </div>
+        <h3>Daily Challenges</h3>
+    </div>
+
+    <!-- Hall of Fame Header -->
+    <div class="hall-of-fame-header">
+        <div class="header-decoration left"></div>
+        <h2>HALL OF FAME</h2>
+        <div class="header-decoration right"></div>
     </div>
 
     <div class="games-container">
@@ -266,7 +683,7 @@
     <div class="footer">
         <p>❤️ Learning Time</p>
     </div>
-    <script src="script.js"></script>
+    <script src="script.js?v=5"></script>
     <script src="games/latest.js"></script>
 </body>
 </html> 
