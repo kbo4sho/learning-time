@@ -82,7 +82,6 @@ function initializeDailyGames() {
 
     // Render the cards with spacers at the start and end
     container.innerHTML =
-        '<div class="daily-game-spacer"></div>' +
         cards.map(card => {
             // Format date as MM-DD-YY for the lower date
             const dateObj = new Date(card.date);
