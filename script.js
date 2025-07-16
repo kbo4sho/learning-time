@@ -8,6 +8,12 @@ window.addEventListener('DOMContentLoaded', function () {
     const stage = document.getElementById('game-of-the-day-stage');
     stage.tabIndex = 0;
 
+    // Animate the stage on initial load
+    stage.classList.add('game-loading-animation');
+    setTimeout(() => {
+        stage.classList.remove('game-loading-animation');
+    }, 800);
+
     // Track focus state
     let gameStageFocused = false;
     stage.addEventListener('focus', () => { gameStageFocused = true; });
@@ -43,9 +49,9 @@ function initializeDailyGames() {
     const container = document.getElementById('daily-games-container');
     if (!container) return;
 
-    // Get today's date
+    // Get today's date in local timezone
     const today = new Date();
-    const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const todayString = formatDateString(today); // YYYY-MM-DD format in local timezone
 
     // Generate cards for the last 7 days and next 3 days
     const cards = [];
@@ -54,7 +60,7 @@ function initializeDailyGames() {
     for (let i = 6; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(today.getDate() - i);
-        const dateString = date.toISOString().split('T')[0];
+        const dateString = formatDateString(date);
         const formattedDate = formatDate(date);
         
         cards.push({
@@ -69,7 +75,7 @@ function initializeDailyGames() {
     for (let i = 1; i <= 3; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
-        const dateString = date.toISOString().split('T')[0];
+        const dateString = formatDateString(date);
         const formattedDate = formatDate(date);
         
         cards.push({
@@ -84,10 +90,11 @@ function initializeDailyGames() {
     container.innerHTML =
         cards.map(card => {
             // Format date as MM-DD-YY for the lower date
-            const dateObj = new Date(card.date);
-            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const dd = String(dateObj.getDate()).padStart(2, '0');
-            const yy = String(dateObj.getFullYear()).slice(-2);
+            // Parse the date string to avoid timezone issues
+            const [year, month, day] = card.date.split('-').map(Number);
+            const mm = String(month).padStart(2, '0');
+            const dd = String(day).padStart(2, '0');
+            const yy = String(year).slice(-2);
             const mmddyy = `${mm}-${dd}-${yy}`;
             return `
                 <div class="daily-game-card ${card.isToday ? 'today active' : ''} ${card.status === 'future' ? 'future' : ''}" 
@@ -107,6 +114,14 @@ function initializeDailyGames() {
     updateActiveCard(todayString);
 }
 
+function formatDateString(date) {
+    // Format date as YYYY-MM-DD in local timezone
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 function formatDate(date) {
     const options = { 
         weekday: 'short', 
@@ -123,7 +138,7 @@ function setDateMessage(dateString) {
     if (existingDateMsg) existingDateMsg.remove();
     // Determine if dateString is today
     const today = new Date();
-    const todayString = today.toISOString().split('T')[0];
+    const todayString = formatDateString(today);
     const dateMsg = document.createElement('div');
     dateMsg.className = 'date-message';
     dateMsg.style.cssText = 'color: var(--text-secondary); font-size: 0.7rem; font-weight: 300; opacity: 0.6; font-style: italic; text-align: center; margin-bottom: 1.2rem; margin-top: 0.5rem;';
@@ -143,6 +158,12 @@ function loadDailyGame(dateString) {
     const gameTitle = document.querySelector('.game-of-the-day-stage h2');
     const gameSubtitle = document.querySelector('.game-of-the-day-stage p');
     
+    // Animate the stage
+    gameStage.classList.add('game-loading-animation');
+    setTimeout(() => {
+        gameStage.classList.remove('game-loading-animation');
+    }, 800);
+
     // Always keep the header and subtitle
     gameTitle.textContent = 'Game of the Day';
     gameSubtitle.textContent = 'a new AI-generated game each day.';
@@ -215,6 +236,12 @@ function loadTodaysGame() {
     const gameTitle = document.querySelector('.game-of-the-day-stage h2');
     const gameSubtitle = document.querySelector('.game-of-the-day-stage p');
     
+    // Animate the stage
+    gameStage.classList.add('game-loading-animation');
+    setTimeout(() => {
+        gameStage.classList.remove('game-loading-animation');
+    }, 800);
+
     // Always keep the header and subtitle
     gameTitle.textContent = 'Game of the Day';
     gameSubtitle.textContent = 'a new AI-generated game each day.';
@@ -232,7 +259,7 @@ function loadTodaysGame() {
     
     // Update the active card to today's card
     const today = new Date();
-    const todayString = today.toISOString().split('T')[0];
+    const todayString = formatDateString(today);
     updateActiveCard(todayString);
     
     // Load the latest game (today's game) using fetch and wrap in function scope
@@ -323,3 +350,120 @@ function updateActiveCard(dateString) {
 }
 
 // Remove connector position JS and window resize handler, as the connector is now always fixed at center.
+
+// Metadata modal functions
+function showMetadata() {
+    const modal = document.getElementById('metadata-modal');
+    const content = document.getElementById('metadata-content');
+    
+    // Get the current game date
+    const activeCard = document.querySelector('.daily-game-card.active');
+    let gameDate = '';
+    
+    if (activeCard) {
+        // Extract date from onclick attribute
+        const onclickAttr = activeCard.getAttribute('onclick');
+        console.log('Active card onclick:', onclickAttr);
+        const match = onclickAttr.match(/loadDailyGame\('([^']+)'\)/);
+        if (match) {
+            gameDate = match[1];
+            console.log('Extracted date from active card:', gameDate);
+        }
+    }
+    
+    // If no active card, use today's date
+    if (!gameDate) {
+        const today = new Date();
+        gameDate = formatDateString(today);
+        console.log('Using today\'s date:', gameDate);
+    }
+    
+    console.log('Final game date for metadata:', gameDate);
+    
+    // Try to load metadata
+    loadMetadata(gameDate);
+    
+    modal.style.display = 'flex';
+}
+
+function hideMetadata() {
+    const modal = document.getElementById('metadata-modal');
+    modal.style.display = 'none';
+}
+
+function loadMetadata(dateString) {
+    const content = document.getElementById('metadata-content');
+    
+    console.log('Loading metadata for:', dateString);
+    
+    // Try to load the markdown metadata first
+    fetch(`games/${dateString}.meta.md`)
+        .then(response => {
+            if (response.ok) {
+                return response.text();
+            }
+            throw new Error('Markdown metadata not found');
+        })
+        .then(markdownContent => {
+            console.log('Markdown metadata loaded successfully');
+            // Simple markdown to HTML conversion for basic formatting
+            let htmlContent = markdownContent
+                .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br>');
+            
+            content.innerHTML = htmlContent;
+        })
+        .catch(error => {
+            console.log('Markdown not found, trying JSON metadata');
+            // If markdown not found, try JSON metadata
+            return fetch(`games/${dateString}.meta.json`)
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('JSON metadata not found');
+                })
+                .then(jsonData => {
+                    console.log('JSON metadata loaded successfully');
+                    // Format JSON data nicely
+                    let htmlContent = '<h2>Game Metadata</h2>';
+                    htmlContent += '<div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin: 1rem 0;">';
+                    htmlContent += '<pre><code>' + JSON.stringify(jsonData, null, 2) + '</code></pre>';
+                    htmlContent += '</div>';
+                    content.innerHTML = htmlContent;
+                });
+        })
+        .catch(error => {
+            console.log('No metadata found:', error);
+            content.innerHTML = `
+                <h2>No Metadata Available</h2>
+                <p>Metadata for ${dateString} is not available.</p>
+                <p>This game may not have associated metadata files.</p>
+                <p><strong>Debug info:</strong> Tried to load:</p>
+                <ul>
+                    <li><code>games/${dateString}.meta.md</code></li>
+                    <li><code>games/${dateString}.meta.json</code></li>
+                </ul>
+            `;
+        });
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('metadata-modal');
+    if (event.target === modal) {
+        hideMetadata();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        hideMetadata();
+    }
+});
