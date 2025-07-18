@@ -18,6 +18,7 @@ with open('games/latest.js', 'r') as f:
 # Step 1: Send a prompt to the Responses API
 prompt = f"You are an expert educational game designer. Each day, you will generate a fun, playable math game in JavaScript for children ages 7 to 9, focused on foundational concepts. Today’s theme: {THEME_OF_THE_DAY} The game must: •	Be engaging and fun first by having a primary visually interesting game mechanic, age-appropriate, and suitable for early learners.•	Reinforce the math concept through a real-world narratives tied to theme.•	Include fun, unique memorable characters tied to the theme.•	Use visually calming and interesting and wacky elements. •	Include sound, using either the Web Audio API or <audio> elements—for correct/incorrect feedback, gentle background effects, or interactions.•	Render entirely inside the existing HTML element with ID game-of-the-day-stage. You may create a <canvas> inside it.•	Have a game area exactly 720px wide by 480px tall.•	Be written in plain valid JavaScript only—no HTML, no CSS, no comments, and no Markdown formatting.•	Output only JavaScript code. No extra explanation or formatting."
 
+
 response = client.responses.create(
     model=MODEL_NAME,
     input=[{"role": "user", "content": prompt}]
@@ -86,8 +87,11 @@ improve_prompt = (
     f"You are an expert educational game designer. "
     f"Take the following JavaScript game code and improve ONLY the visuals and audio. "
     f"Do not change the game mechanics or math logic. "
-    f"Enhance the visual appeal (colors, animations, backgrounds, characters) and add or improve sound effects and background audio. "
-    f"Output only the improved JavaScript code. No extra explanation or formatting.\n\n"
+    f"Enhance the visual appeal (colors, animations, backgrounds, characters), avoid overstimulation with sounds and visuals, and add or improve sound effects and background audio. "
+    f"Render entirely inside the existing HTML element with ID game-of-the-day-stage. You may create a <canvas> inside it."
+    f"Have a game area exactly 720px wide by 480px tall."
+    f"Be written in plain valid JavaScript only—no HTML, no CSS, no comments, and no Markdown formatting."
+    f"Output only JavaScript code. No extra explanation or formatting."
     f"---\n{response_text}\n---"
 )
 
