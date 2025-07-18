@@ -612,52 +612,6 @@
             font-family: 'Inter', sans-serif;
         }
 
-        #card-port {
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(calc(-50% - 2px));
-            width: 230px;
-            height: 82px;
-            opacity: 00%;
-            background: linear-gradient(
-                to bottom,
-                #3a2e6c 0%,
-                var(--primary-color) 60%,
-                #18182e 100%
-            );
-            border-radius: 0 0 12px 12px / 0 0 8px 8px;
-            box-shadow:
-                0 4px 16px 0 var(--primary-color),
-                0 1px 0 0 #fff2 inset;
-            z-index: 40;
-            border-top: 3px solid #fff2;
-            border-bottom: 2px solid #18182e;
-            pointer-events: none;
-            display: block;
-        }
-        
-        @media (max-width: 800px) {
-            #card-port {
-                width: 200px;
-                height: 70px;
-            }
-        }
-        
-        @media (max-width: 600px) {
-            #card-port {
-                width: 180px;
-                height: 60px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            #card-port {
-                width: 160px;
-                height: 50px;
-            }
-        }
-
         .daily-game-spacer {
             flex: 0 0 50%;
             height: 1px;
