@@ -3,6 +3,7 @@ import os
 import json
 from datetime import date, datetime
 import shutil
+import glob
 
 # Configuration variables
 MODEL_NAME = "gpt-4.1-mini" 
@@ -134,3 +135,9 @@ with open(f"games/{today}.meta.md", "w") as f:
 
 print(f"✅ Visuals and audio improved for games/{today}.js and games/latest.js")
 print(f"✅ Metadata updated for games/{today}.meta.json and games/{today}.meta.md")
+
+# Update the index.json file
+game_files = sorted(glob.glob("games/2025-*.js"))
+dates = [f.split('/')[-1].replace('.js', '') for f in game_files]
+with open("games/index.json", "w") as f:
+    json.dump(dates, f)

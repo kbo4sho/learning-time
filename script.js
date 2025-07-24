@@ -49,6 +49,31 @@ function initializeDailyGames() {
     const container = document.getElementById('daily-games-container');
     if (!container) return;
 
+    fetch('games/index.json')
+    .then(res => res.json())
+    .then(dates => {
+        const today = new Date();
+        const todayString = formatDateString(today);
+
+        container.innerHTML = dates.map(dateString => {
+            const formattedDate = formatDate(new Date(dateString));
+            const isToday = dateString === todayString;
+            return `
+                <div class="daily-game-card ${isToday ? 'today active' : ''}" 
+                     onclick="loadDailyGame('${dateString}');">
+                    <h4>${formattedDate}</h4>
+                    <div class="date">${dateString.slice(5).replace(/-/g, '-')}</div>
+                    <div class="status ${isToday ? 'today' : 'available'}">
+                        ${isToday ? 'TODAY' : 'PLAY'}
+                    </div>
+                </div>
+            `;
+        }).join('') + '<div class="daily-game-spacer"></div>';
+
+        // Activate and center today's card on page load
+        updateActiveCard(todayString);
+    });
+
     // Get today's date in local timezone
     const today = new Date();
     const todayString = formatDateString(today); // YYYY-MM-DD format in local timezone

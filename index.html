@@ -186,7 +186,7 @@
             border-radius: 8px;
             /* box-shadow: 0 4px 8px rgba(0,0,0,0.15); */
             /* box-shadow: inset 0 0 32px 0 rgba(0,0,0,0.45); */
-            margin: 0 auto;
+            margin: 0 auto 8px auto;
             overflow: hidden;
             position: relative;
         }
@@ -464,9 +464,6 @@
         }
 
         .metadata-btn {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
             background: rgba(108, 99, 255, 0.1);
             color: var(--text-secondary);
             border: 1px solid rgba(108, 99, 255, 0.3);
@@ -478,7 +475,6 @@
             cursor: pointer;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
-            z-index: 10;
         }
 
         .metadata-btn:hover {
@@ -625,6 +621,7 @@
                 height: calc(66vw * 2 / 3); /* maintain 3:2 ratio */
                 min-height: 220px;
                 max-height: 70vw;
+                margin-bottom: 8px;
             }
             .game-of-the-day-stage {
                 max-width: 98vw;
@@ -820,12 +817,12 @@
 
     <!-- Game of the Day Stage -->
     <div class="game-of-the-day-stage" style="position: relative;">
-        <button class="metadata-btn" onclick="showMetadata()">📊 Metadata</button>
         <h2>Game of the Day</h2>
         <p style="margin-top: -0.5rem; margin-bottom: 0rem; color: var(--text-secondary); font-size: 1rem; font-style: italic; text-align: center; max-width: 90%;">
             a new AI-generated game each     day.
         </p>
         <div id="game-of-the-day-stage"></div>
+        <button class="metadata-btn" onclick="showMetadata()">Metadata</button>
         <div class="daily-games-section">
             <div class="daily-games-container" id="daily-games-container">
                 <!-- Daily game cards will be populated by JavaScript -->
