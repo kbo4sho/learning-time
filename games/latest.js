@@ -1,1 +1,499 @@
-const stage=document.getElementById("game-of-the-day-stage");stage.innerHTML="";const canvas=document.createElement("canvas");canvas.width=720;canvas.height=480;stage.appendChild(canvas);const ctx=canvas.getContext("2d");const audioCtx=new(window.AudioContext||window.webkitAudioContext)();let keys={};document.addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true});document.addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false});const playSound=(freq,dur,volume=0.2,type="sine")=>{const osc=audioCtx.createOscillator();const gain=audioCtx.createGain();osc.frequency.value=freq;osc.type=type;gain.gain.value=volume*0.8;osc.connect(gain);gain.connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+dur);osc.onended=()=>{gain.disconnect();osc.disconnect()}};const playCorrect=()=>playSound(880,0.18,0.25,"triangle");const playWrong=()=>playSound(220,0.35,0.15,"sawtooth");const playStep=()=>playSound(440,0.07,0.08,"square");const bkgAudioCtx=new(window.AudioContext||window.webkitAudioContext)();let bgGain=bkgAudioCtx.createGain();bgGain.gain.value=0.04;bgGain.connect(bkgAudioCtx.destination);const createBackgroundSound=()=>{const osc1=bkgAudioCtx.createOscillator();const osc2=bkgAudioCtx.createOscillator();const gain1=bkgAudioCtx.createGain();const gain2=bkgAudioCtx.createGain();osc1.frequency.value=55;osc1.type="sine";osc2.frequency.value=110;osc2.type="triangle";gain1.gain.value=0.06;gain2.gain.value=0.04;osc1.connect(gain1);gain1.connect(bgGain);osc2.connect(gain2);gain2.connect(bgGain);osc1.start();osc2.start();return ()=>{osc1.stop();osc2.stop();gain1.disconnect();gain2.disconnect()}};const stopBackgroundSound=createBackgroundSound();class Explorer{constructor(){this.x=360;this.y=240;this.size=48;this.color="#ff8c42";this.speed=3;this.wobbly=0;this.wobblyDir=1;this.tailPoints=[]}draw(){this.wobbly+=this.wobblyDir*0.12;if(this.wobbly>1.5||this.wobbly<-1.5)this.wobblyDir*=-1;this.tailPoints.unshift({x:this.x-this.wobbly*12,y:this.y+this.wobbly*8});if(this.tailPoints.length>20)this.tailPoints.pop();ctx.save();ctx.shadowColor="rgba(255,140,66,0.6)";ctx.shadowBlur=12;ctx.fillStyle=this.color;ctx.beginPath();ctx.ellipse(this.x,this.y,this.size*0.5,this.size*0.7,this.wobbly*0.15,0,Math.PI*2);ctx.fill();ctx.fillStyle="#fff";ctx.beginPath();ctx.ellipse(this.x+this.wobbly*10,this.y-this.size*0.15,8,11,0,0,Math.PI*2);ctx.fill();ctx.fillStyle="#000";ctx.beginPath();ctx.ellipse(this.x+this.wobbly*10,this.y-this.size*0.15,3,5,0,0,Math.PI*2);ctx.fill();ctx.restore();ctx.strokeStyle="rgba(255,140,66,0.4)";ctx.lineWidth=10;ctx.lineCap="round";for(let i=0;i<this.tailPoints.length-1;i++){const p1=this.tailPoints[i];const p2=this.tailPoints[i+1];ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke()}}}class FriendlyAlien{constructor(x,y){this.x=x;this.y=y;this.size=60;this.eyeSize=14;this.bubbleActive=false;this.bubbleText="";this.bubbleTimer=0;this.colorMain="#7ccb7c";this.colorAccent="#4a8f4a"}draw(){ctx.save();ctx.shadowColor="rgba(74,143,74,0.6)";ctx.shadowBlur=14;ctx.fillStyle=this.colorMain;ctx.beginPath();ctx.ellipse(this.x,this.y,this.size*0.65,this.size*1.05,Math.sin(Date.now()/1000)*0.15,0,Math.PI*2);ctx.fill();ctx.fillStyle=this.colorAccent;ctx.beginPath();ctx.ellipse(this.x,this.y,this.size*0.55,this.size*0.85,Math.sin(Date.now()/1200)*0.25,0,Math.PI*2);ctx.fill();ctx.fillStyle="#fff";ctx.beginPath();ctx.ellipse(this.x-14,this.y-14,this.eyeSize,this.eyeSize*1.3,0,0,Math.PI*2);ctx.ellipse(this.x+14,this.y-14,this.eyeSize,this.eyeSize*1.3,0,0,Math.PI*2);ctx.fill();ctx.fillStyle="#000";ctx.beginPath();ctx.ellipse(this.x-14,this.y-14,this.eyeSize/2,this.eyeSize*0.8,0,0,Math.PI*2);ctx.ellipse(this.x+14,this.y-14,this.eyeSize/2,this.eyeSize*0.8,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#317a31";ctx.lineWidth=3;ctx.beginPath();ctx.arc(this.x,this.y+18,18,0,Math.PI);ctx.stroke();ctx.restore();if(this.bubbleActive){ctx.fillStyle="rgba(255,255,255,0.9)";ctx.strokeStyle="#3a893a";ctx.lineWidth=4;ctx.font="22px Comic Sans MS";ctx.textAlign="center";ctx.textBaseline="middle";const w=Math.min(320,ctx.measureText(this.bubbleText).width);const h=36;ctx.beginPath();ctx.moveTo(this.x+8,this.y-this.size-14);ctx.lineTo(this.x+20,this.y-this.size-44);ctx.lineTo(this.x+32,this.y-this.size-14);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillRect(this.x-w/2-10,this.y-this.size-50,w+20,h);ctx.strokeRect(this.x-w/2-10,this.y-this.size-50,w+20,h);ctx.fillStyle="#317a31";ctx.fillText(this.bubbleText,this.x,this.y-this.size-32)}}updateBubble(text){this.bubbleText=text;this.bubbleActive=true;this.bubbleTimer=280}tick(){if(this.bubbleTimer>0)this.bubbleTimer--;else this.bubbleActive=false}}class MathCrystal{constructor(x,y,value){this.x=x;this.y=y;this.size=36;this.value=value;this.collected=false;this.glow=0;this.glowDir=0.04}draw(){if(this.collected)return;this.glow+=this.glowDir;if(this.glow>0.8||this.glow<0)this.glowDir*=-1;ctx.save();ctx.shadowColor=`rgba(255,255,255,${this.glow})`;ctx.shadowBlur=20;ctx.fillStyle=`hsl(${(this.value*42+90)%360},75%,70%)`;ctx.beginPath();ctx.moveTo(this.x,this.y-this.size);ctx.lineTo(this.x+this.size,this.y);ctx.lineTo(this.x,this.y+this.size);ctx.lineTo(this.x-this.size,this.y);ctx.closePath();ctx.fill();ctx.strokeStyle="#666";ctx.lineWidth=4;ctx.stroke();ctx.shadowColor="transparent";ctx.fillStyle="#222";ctx.font="22px Comic Sans MS";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(this.value,this.x,this.y);ctx.restore()}}class World{constructor(){this.explorer=new Explorer();this.aliens=[new FriendlyAlien(170,140),new FriendlyAlien(570,350),new FriendlyAlien(370,90)];this.crystals=[];this.crystals.push(new MathCrystal(110,410,2));this.crystals.push(new MathCrystal(610,435,3));this.crystals.push(new MathCrystal(360,315,1));this.crystals.push(new MathCrystal(230,240,4));this.crystals.push(new MathCrystal(540,155,5));this.score=0;this.goal=0;this.question="";this.feedback="";this.feedbackTimer=0;this.generateQuestion();this.bgPattern=createForestBkgPattern()}generateQuestion(){const c1=this.randomCrystalValue();const c2=this.randomCrystalValue();this.currentSum=c1+c2;this.question=`Help explorer find crystals summing to ${this.currentSum}!`;this.goal=this.currentSum;this.score=0;this.crystals.forEach(c=>c.collected=false)}randomCrystalValue(){const values=this.crystals.map(c=>c.value);return values[Math.floor(Math.random()*values.length)]}checkCollection(){for(const c of this.crystals){if(c.collected)continue;const dx=this.explorer.x-c.x;const dy=this.explorer.y-c.y;const dist=Math.sqrt(dx*dx+dy*dy);if(dist<45)return c}return null}collectCrystal(c){c.collected=true;this.score+=c.value;playCorrect();this.aliens.forEach(a=>a.updateBubble(`Found ${c.value}!`));if(this.score===this.goal){this.feedback="Great! Sum matched! 🎉";playSound(950,0.3,0.4,"triangle")}else if(this.score>this.goal){this.feedback="Too many points! Try again.";playWrong();this.score=0;this.crystals.forEach(cr=>cr.collected=false)}else this.feedback="Keep going!";playStep();this.feedbackTimer=180}update(){if(keys["arrowleft"]||keys["a"])this.explorer.x-=this.explorer.speed;if(keys["arrowright"]||keys["d"])this.explorer.x+=this.explorer.speed;if(keys["arrowup"]||keys["w"])this.explorer.y-=this.explorer.speed;if(keys["arrowdown"]||keys["s"])this.explorer.y+=this.explorer.speed;this.explorer.x=Math.max(28,Math.min(canvas.width-28,this.explorer.x));this.explorer.y=Math.max(28,Math.min(canvas.height-28,this.explorer.y));const collected=this.checkCollection();if(collected)this.collectCrystal(collected);this.aliens.forEach(a=>a.tick());if(this.feedbackTimer>0)this.feedbackTimer--}drawTextBubble(text,x,y,width=300,height=70){ctx.fillStyle="rgba(255,255,255,0.92)";ctx.strokeStyle="#448844";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x,y);ctx.bezierCurveTo(x+width/2,y-height/1.3,x+width/2,y-height/1.3,x+width,y);ctx.lineTo(x+width,y+height);ctx.bezierCurveTo(x+width/2,y+height/0.8,x+width/2,y+height/0.8,x,y+height);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle="#2e7d32";ctx.font="26px Comic Sans MS";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(text,x+width/2,y+height/2)}draw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle="#b3ede2";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle=this.bgPattern;ctx.globalAlpha=0.4;ctx.fillRect(0,0,canvas.width,canvas.height);ctx.globalAlpha=1;for(let i=0;i<15;i++){ctx.fillStyle=`rgba(255,255,255,${(0.05+0.04*Math.sin(Date.now()/1000+i))})`;ctx.beginPath();const cx=(i*47+Date.now()/30)%canvas.width;const cy=40+20*Math.sin(Date.now()/1800+i);ctx.ellipse(cx,cy,40,24,Math.sin(Date.now()/600+i)*0.4,0,Math.PI*2);ctx.fill()}this.crystals.forEach(c=>c.draw());this.explorer.draw();this.aliens.forEach(a=>a.draw());ctx.fillStyle="#2e7d32";ctx.font="29px Comic Sans MS";ctx.textAlign="left";ctx.fillText(this.question,12,36);if(this.feedbackTimer>0)this.drawTextBubble(this.feedback,170,380,380,70);ctx.fillStyle="#397d39";ctx.font="27px Comic Sans MS";ctx.textAlign="right";ctx.fillText(`Collected: ${this.score}`,canvas.width-24,36)}}function createForestBkgPattern(){const patternCanvas=document.createElement("canvas");patternCanvas.width=50;patternCanvas.height=50;const pctx=patternCanvas.getContext("2d");const bgColors=["#d0f0de","#b7ddbb","#a4d3a4","#8fcf8f"];pctx.fillStyle=bgColors[0];pctx.fillRect(0,0,50,50);pctx.fillStyle=bgColors[1];pctx.beginPath();pctx.moveTo(10,40);pctx.lineTo(20,5);pctx.lineTo(30,40);pctx.closePath();pctx.fill();pctx.fillStyle=bgColors[2];pctx.beginPath();pctx.moveTo(20,40);pctx.lineTo(30,8);pctx.lineTo(40,40);pctx.closePath();pctx.fill();pctx.fillStyle=bgColors[3];pctx.beginPath();pctx.moveTo(30,40);pctx.lineTo(40,12);pctx.lineTo(50,40);pctx.closePath();pctx.fill();pctx.fillStyle="#257425";pctx.beginPath();pctx.arc(25,45,10,0,Math.PI);pctx.fill();return ctx.createPattern(patternCanvas,"repeat")}const world=new World();function loop(){world.update();world.draw();requestAnimationFrame(loop)}loop();
+const stage = document.getElementById('game-of-the-day-stage');
+stage.innerHTML = '';
+
+const canvas = document.createElement('canvas');
+canvas.width = 720;
+canvas.height = 480;
+stage.appendChild(canvas);
+
+const ctx = canvas.getContext('2d');
+
+// Audio setup with proper error handling
+let bgMusic = new Audio();
+let correctSound = new Audio();
+let wrongSound = new Audio();
+let audioEnabled = false;
+
+// Try to load audio files with fallbacks
+function setupAudio() {
+    // Background music - use a simple beep pattern instead of external file
+    bgMusic = new Audio();
+    bgMusic.loop = true;
+    bgMusic.volume = 0.06;
+    
+    // Create simple audio tones for sounds
+    correctSound = new Audio();
+    wrongSound = new Audio();
+    
+    // Enable audio only after user interaction
+    document.addEventListener('click', () => {
+        if (!audioEnabled) {
+            audioEnabled = true;
+            // Start background music only after user interaction
+            bgMusic.play().catch(e => console.log('Audio play failed:', e));
+        }
+    }, { once: true });
+}
+
+// Explorer and friend objects
+const explorer = {
+    x: 50, y: 400, width: 48, height: 64, 
+    color: '#ff704d', velX: 0, velY: 0, 
+    jumping: false, onGround: false,
+    img: null, frame: 0, frameCount: 4, 
+    frameTimer: 0, frameInterval: 10
+};
+
+const friend = {
+    x: 600, y: 400, width: 48, height: 64, 
+    color: '#4da6ff', img: null, frame: 0, 
+    frameCount: 4, frameTimer: 0, frameInterval: 20
+};
+
+const terrain = [];
+let keys = [];
+let gravity = 0.8;
+let friction = 0.75;
+let currentQuestion = null;
+let questionAnswered = false;
+const fontFamily = 'Comic Sans MS, cursive, sans-serif';
+let messages = [];
+
+function loadImages() {
+    // Create simple colored rectangles instead of loading external images
+    explorer.img = { complete: true };
+    friend.img = { complete: true };
+}
+
+function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function createTerrain() {
+    terrain.push({x: 0, y: 460, width: 720, height: 20, color: '#6a4a3c'});
+    terrain.push({x: 200, y: 380, width: 100, height: 20, color: '#b4a57a'});
+    terrain.push({x: 360, y: 320, width: 120, height: 20, color: '#7897ab'});
+    terrain.push({x: 540, y: 380, width: 100, height: 20, color: '#e7b89c'});
+}
+
+function drawRect(r) {
+    ctx.fillStyle = r.color;
+    ctx.shadowColor = 'rgba(0,0,0,0.15)';
+    ctx.shadowBlur = 8;
+    ctx.fillRect(r.x, r.y, r.width, r.height);
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(r.x, r.y, r.width, r.height);
+}
+
+function drawExplorer() {
+    // Draw explorer as a colored rectangle with simple animation
+    ctx.fillStyle = explorer.color;
+    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+    ctx.shadowBlur = 4;
+    
+    // Simple animation effect
+    explorer.frameTimer++;
+    if (explorer.frameTimer >= explorer.frameInterval) {
+        explorer.frame++;
+        explorer.frameTimer = 0;
+        if (explorer.frame >= explorer.frameCount) explorer.frame = 0;
+    }
+    
+    // Add a slight bounce effect
+    const bounce = Math.sin(explorer.frame * 0.5) * 2;
+    ctx.fillRect(explorer.x, explorer.y + bounce, explorer.width, explorer.height);
+    
+    // Draw eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(explorer.x + 8, explorer.y + 12, 6, 6);
+    ctx.fillRect(explorer.x + 34, explorer.y + 12, 6, 6);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(explorer.x + 10, explorer.y + 14, 2, 2);
+    ctx.fillRect(explorer.x + 36, explorer.y + 14, 2, 2);
+    
+    ctx.shadowBlur = 0;
+}
+
+function drawFriend() {
+    // Draw friend as a colored rectangle with simple animation
+    ctx.fillStyle = friend.color;
+    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+    ctx.shadowBlur = 4;
+    
+    // Simple animation effect
+    friend.frameTimer++;
+    if (friend.frameTimer >= friend.frameInterval) {
+        friend.frame++;
+        friend.frameTimer = 0;
+        if (friend.frame >= friend.frameCount) friend.frame = 0;
+    }
+    
+    // Add a slight bounce effect
+    const bounce = Math.sin(friend.frame * 0.3) * 1.5;
+    ctx.fillRect(friend.x, friend.y + bounce, friend.width, friend.height);
+    
+    // Draw eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(friend.x + 8, friend.y + 12, 6, 6);
+    ctx.fillRect(friend.x + 34, friend.y + 12, 6, 6);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(friend.x + 10, friend.y + 14, 2, 2);
+    ctx.fillRect(friend.x + 36, friend.y + 14, 2, 2);
+    
+    ctx.shadowBlur = 0;
+}
+
+function drawMessage(text, x, y, color = '#333') {
+    ctx.fillStyle = color;
+    ctx.font = '22px ' + fontFamily;
+    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(text, x, y);
+    ctx.shadowBlur = 0;
+}
+
+function drawQuestion() {
+    if (!currentQuestion) return;
+    
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+    ctx.shadowBlur = 10;
+    ctx.fillRect(140, 10, 440, 90);
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#5B5B5B';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(140, 10, 440, 90);
+    
+    ctx.fillStyle = '#222';
+    ctx.font = '22px ' + fontFamily;
+    ctx.fillText('Solve to help Explorer collect the treasure:', 180, 48);
+    ctx.font = '30px ' + fontFamily;
+    ctx.fillStyle = '#2a3745';
+    ctx.fillText(currentQuestion.text, 320, 83);
+}
+
+function drawTreasures() {
+    for (let t of treasures) {
+        ctx.beginPath();
+        const gradient = ctx.createRadialGradient(t.x, t.y, 8, t.x, t.y, 16);
+        gradient.addColorStop(0, t.color);
+        gradient.addColorStop(1, '#222');
+        ctx.fillStyle = gradient;
+        ctx.shadowColor = 'rgba(0,0,0,0.25)';
+        ctx.shadowBlur = 6;
+        ctx.arc(t.x, t.y, 16, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.closePath();
+        
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 22px ' + fontFamily;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(t.symbol, t.x, t.y);
+    }
+    ctx.textAlign = 'start';
+    ctx.textBaseline = 'alphabetic';
+}
+
+function updateExplorer() {
+    explorer.velY += gravity;
+    explorer.x += explorer.velX;
+    explorer.y += explorer.velY;
+    explorer.velX *= friction;
+    
+    if (explorer.x < 0) explorer.x = 0;
+    if (explorer.x + explorer.width > canvas.width) explorer.x = canvas.width - explorer.width;
+    
+    explorer.onGround = false;
+    
+    for (let plat of terrain) {
+        if (explorer.x + explorer.width > plat.x && explorer.x < plat.x + plat.width) {
+            if (explorer.y + explorer.height >= plat.y && explorer.y + explorer.height <= plat.y + explorer.velY + gravity) {
+                explorer.y = plat.y - explorer.height;
+                explorer.velY = 0;
+                explorer.jumping = false;
+                explorer.onGround = true;
+            }
+        }
+    }
+    
+    if (explorer.y + explorer.height > canvas.height) {
+        explorer.y = canvas.height - explorer.height;
+        explorer.velY = 0;
+        explorer.jumping = false;
+        explorer.onGround = true;
+    }
+}
+
+function checkCollision(a, b) {
+    return a.x < a.x + b.width && a.x + a.width > b.x && a.y < a.y + b.height && a.y + a.height > b.y;
+}
+
+function rectCircleColliding(rect, circle) {
+    var distX = Math.abs(circle.x - (rect.x + rect.width / 2));
+    var distY = Math.abs(circle.y - (rect.y + rect.height / 2));
+    
+    if (distX > rect.width / 2 + circle.radius) {
+        return false;
+    }
+    if (distY > rect.height / 2 + circle.radius) {
+        return false;
+    }
+    if (distX <= rect.width / 2) {
+        return true;
+    }
+    if (distY <= rect.height / 2) {
+        return true;
+    }
+    
+    var dx = distX - rect.width / 2;
+    var dy = distY - rect.height / 2;
+    return (dx * dx + dy * dy <= circle.radius * circle.radius);
+}
+
+let treasures = [];
+
+function generateTreasures() {
+    treasures = [];
+    let symbols = ['+', '-', '×', '÷'];
+    let colors = ['#ffd166', '#06d6a0', '#ef476f', '#118ab2'];
+    
+    for (let i = 0; i < 4; i++) {
+        treasures.push({
+            x: 250 + 150 * i, y: 340, radius: 16,
+            symbol: symbols[i], color: colors[i], collected: false
+        });
+    }
+}
+
+function resetQuestion() {
+    let a = randomInt(1, 10);
+    let b = randomInt(1, 10);
+    let opIndex = randomInt(0, 3);
+    let op, symbol, result;
+    
+    if (opIndex === 0) {
+        op = (x, y) => x + y;
+        symbol = '+';
+        result = a + b;
+    } else if (opIndex === 1) {
+        op = (x, y) => x - y;
+        symbol = '-';
+        result = a - b;
+    } else if (opIndex === 2) {
+        op = (x, y) => x * y;
+        symbol = '×';
+        result = a * b;
+    } else {
+        a = a * b;
+        op = (x, y) => x / y;
+        symbol = '÷';
+        result = b;
+    }
+    
+    currentQuestion = {
+        a, b, symbol, result,
+        text: `${a} ${symbol} ${b} = ?`,
+        op, answered: false
+    };
+    
+    treasures.forEach(t => t.collected = false);
+    questionAnswered = false;
+}
+
+function handleInput() {
+    if (keys['ArrowRight']) {
+        explorer.velX += 0.7;
+        if (explorer.velX > 5) explorer.velX = 5;
+    }
+    if (keys['ArrowLeft']) {
+        explorer.velX -= 0.7;
+        if (explorer.velX < -5) explorer.velX = -5;
+    }
+    if (keys['ArrowUp'] || keys[' ']) {
+        if (!explorer.jumping && explorer.onGround) {
+            explorer.velY = -15;
+            explorer.jumping = true;
+            explorer.onGround = false;
+            playJumpSound();
+        }
+    }
+}
+
+function checkTreasureCollection() {
+    for (let t of treasures) {
+        if (!t.collected) {
+            let distX = explorer.x + explorer.width / 2 - t.x;
+            let distY = explorer.y + explorer.height / 2 - t.y;
+            let dist = Math.sqrt(distX * distX + distY * distY);
+            
+            if (dist < 32) {
+                t.collected = true;
+                if (!questionAnswered) {
+                    currentQuestion.selected = t.symbol;
+                    messages.push({
+                        text: `You chose ${t.symbol} to solve!`,
+                        time: 0, color: '#176932'
+                    });
+                    playSound(true);
+                    checkAnswer(t.symbol);
+                }
+            }
+        }
+    }
+}
+
+function checkAnswer(symbol) {
+    if (symbol === currentQuestion.symbol) {
+        questionAnswered = true;
+        messages.push({
+            text: 'Correct! The treasure is yours!',
+            time: 0, color: '#0a802a'
+        });
+        playSound(true);
+        setTimeout(() => {
+            resetQuestion();
+        }, 3000);
+    } else {
+        messages.push({
+            text: 'Oops! Try again by walking to the right treasure.',
+            time: 0, color: '#b03030'
+        });
+        playSound(false);
+    }
+}
+
+function playSound(correct) {
+    if (!audioEnabled) return;
+    
+    try {
+        if (correct) {
+            correctSound.currentTime = 0;
+            correctSound.volume = 0.7;
+            correctSound.play().catch(e => console.log('Correct sound failed:', e));
+        } else {
+            wrongSound.currentTime = 0;
+            wrongSound.volume = 0.55;
+            wrongSound.play().catch(e => console.log('Wrong sound failed:', e));
+        }
+    } catch (e) {
+        console.log('Audio play failed:', e);
+    }
+}
+
+function playJumpSound() {
+    if (!audioEnabled) return;
+    
+    try {
+        let jumpAudio = new Audio();
+        jumpAudio.volume = 0.25;
+        jumpAudio.play().catch(e => console.log('Jump sound failed:', e));
+    } catch (e) {
+        console.log('Jump audio failed:', e);
+    }
+}
+
+function drawMessages() {
+    for (let i = messages.length - 1; i >= 0; i--) {
+        let m = messages[i];
+        ctx.globalAlpha = 1 - Math.min(m.time / 300, 1);
+        drawMessage(m.text, 15, 430 - 30 * i, m.color || '#222');
+        m.time += 1;
+        if (m.time > 300) messages.splice(i, 1);
+    }
+    ctx.globalAlpha = 1;
+}
+
+function drawBackground() {
+    let skyGradient = ctx.createLinearGradient(0, 0, 0, 300);
+    skyGradient.addColorStop(0, '#89c4f4');
+    skyGradient.addColorStop(1, '#ddeefd');
+    ctx.fillStyle = skyGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#457b9d';
+    ctx.shadowColor = 'rgba(0,0,0,0.18)';
+    ctx.shadowBlur = 9;
+    ctx.fillRect(0, 460, canvas.width, 20);
+    ctx.shadowBlur = 0;
+    
+    // Draw sun
+    ctx.beginPath();
+    ctx.fillStyle = '#f4a261';
+    ctx.ellipse(100, 110, 42, 62, Math.PI / 6, 0, 2 * Math.PI);
+    ctx.shadowColor = 'rgba(252, 145, 54, 0.22)';
+    ctx.shadowBlur = 20;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    
+    // Draw moon
+    ctx.beginPath();
+    ctx.fillStyle = '#ffba08';
+    ctx.ellipse(680, 80, 32, 48, -Math.PI / 4, 0, 2 * Math.PI);
+    ctx.shadowColor = 'rgba(255, 189, 8, 0.36)';
+    ctx.shadowBlur = 24;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    
+    // Draw stars
+    ctx.shadowColor = '';
+    ctx.fillStyle = '#ffffff55';
+    for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.arc(100 + Math.cos(performance.now() / 2000 + i * 1.1) * 15, 
+                110 + Math.sin(performance.now() / 1400 + i * 1.5) * 10, 2.7, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+    for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.arc(680 + Math.cos(performance.now() / 1500 + i * 1.3) * 12, 
+                80 + Math.sin(performance.now() / 1800 + i * 1.8) * 15, 2, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+}
+
+// Event listeners
+window.addEventListener('keydown', e => {
+    keys[e.key] = true;
+});
+
+window.addEventListener('keyup', e => {
+    keys[e.key] = false;
+});
+
+// Initialize game
+setupAudio();
+loadImages();
+createTerrain();
+generateTreasures();
+resetQuestion();
+
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBackground();
+    
+    drawRect(terrain[0]);
+    for (let i = 1; i < terrain.length; i++) {
+        drawRect(terrain[i]);
+    }
+    
+    drawTreasures();
+    drawExplorer();
+    drawFriend();
+    drawQuestion();
+    drawMessages();
+    
+    handleInput();
+    updateExplorer();
+    checkTreasureCollection();
+    
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
