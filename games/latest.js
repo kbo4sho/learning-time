@@ -1,1 +1,562 @@
-const stage = document.getElementById('game-of-the-day-stage');stage.innerHTML = '';const W = 720,H = 480;const canvas = document.createElement('canvas');canvas.width = W;canvas.height = H;stage.appendChild(canvas);const ctx = canvas.getContext('2d');const bgMusic = new Audio('https://cdn.pixabay.com/download/audio/2022/02/11/audio_156881131ec.mp3?filename=magical-fairyland-ambient-25918.mp3');bgMusic.loop = true;bgMusic.volume = 0.07;bgMusic.play().catch(()=>{});const correctSound = new Audio('https://cdn.pixabay.com/download/audio/2021/11/23/audio_1a6818802f.mp3?filename=game-treasure-collect-6289.mp3');correctSound.volume=0.5;const wrongSound = new Audio('https://cdn.pixabay.com/download/audio/2021/09/27/audio_258a3497d0.mp3?filename=error-fail-6050.mp3');wrongSound.volume=0.4;class Explorer{constructor(){this.x = W/2;this.y = H/2;this.size = 48;this.speed = 3;this.dir = {left:false,right:false,up:false,down:false};this.image = new Image();this.image.src = 'https://cdn-icons-png.flaticon.com/512/3059/3059651.png';this.sparkles=[];}update(){if(this.dir.left)this.x-=this.speed;if(this.dir.right)this.x+=this.speed;if(this.dir.up)this.y-=this.speed;if(this.dir.down)this.y+=this.speed;this.x = Math.min(Math.max(this.size/2,this.x),W-this.size/2);this.y = Math.min(Math.max(this.size/2,this.y),H-this.size/2);if(Math.random()<0.3){this.sparkles.push({x:this.x+(Math.random()-0.5)*this.size,y:this.y+(Math.random()-0.5)*this.size,r:Math.random()*2+1,life:20});}for(let i=this.sparkles.length-1;i>=0;i--){let p=this.sparkles[i];p.life--;p.r+=0.1;if(p.life<=0)this.sparkles.splice(i,1);}}draw(){for(let p of this.sparkles){ctx.beginPath();let alpha = p.life/20;ctx.fillStyle = `rgba(255,255,180,${alpha})`;ctx.shadowColor='rgba(255,255,200,0.7)';ctx.shadowBlur=8;ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}ctx.shadowColor='rgba(0,0,0,0.3)';ctx.shadowBlur=6;ctx.drawImage(this.image,this.x-this.size/2,this.y-this.size/2,this.size,this.size);ctx.shadowBlur=0;}}class FriendlyAlien{constructor(x,y,question){this.x = x;this.y = y;this.size = 50;this.color = '#ff77aa';this.question = question;this.answered = false;this.image = new Image();this.image.src = 'https://cdn-icons-png.flaticon.com/512/616/616490.png';this.bobPhase=0;}draw(){this.bobPhase+=0.05;let bobOffset = Math.sin(this.bobPhase)*5;ctx.save();ctx.translate(this.x,this.y+bobOffset);ctx.shadowColor = 'rgba(255,102,153,0.8)';ctx.shadowBlur = 12;ctx.drawImage(this.image,-this.size/2,-this.size/2,this.size,this.size);ctx.restore();ctx.fillStyle = this.color;ctx.font = '16px Comic Sans MS';ctx.textAlign = 'center';ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=4;if(!this.answered){ctx.fillText(this.question.text,this.x,this.y - this.size - 10);}else{ctx.fillStyle = '#00cc00';ctx.fillText('Thanks!',this.x,this.y - this.size - 10);}ctx.shadowBlur=0;}isTouched(x,y){return !this.answered && Math.hypot(x - this.x,y - this.y) < this.size;}class NumberStone{constructor(x,y,value){this.x = x;this.y = y;this.size = 44;this.value = value;this.collected = false;this.color = '#74b49b';this.gradient = null;this.shimmerPhase=0;this.shimmerSpeed=0.04;this.canvasStone = document.createElement('canvas');this.canvasStone.width = this.canvasStone.height = this.size;const cctx = this.canvasStone.getContext('2d');let grad = cctx.createRadialGradient(this.size/2,this.size/2,this.size/4,this.size/2,this.size/2,this.size/2);grad.addColorStop(0,'#a1d0c3');grad.addColorStop(1,'#3b7a57');cctx.fillStyle=grad;cctx.beginPath();cctx.ellipse(this.size/2,this.size/2,this.size*0.4,this.size*0.45,0,0,Math.PI*2);cctx.fill();cctx.strokeStyle='#2e5e40';cctx.lineWidth=3;cctx.beginPath();cctx.ellipse(this.size/2,this.size/2,this.size*0.4,this.size*0.45,0,0,Math.PI*2);cctx.stroke();cctx.fillStyle = '#034732';cctx.font = 'bold 20px Comic Sans MS';cctx.textAlign = 'center';cctx.textBaseline = 'middle';cctx.fillText(this.value,this.size/2,this.size/2+1);}draw(){if(this.collected)return;this.shimmerPhase+=this.shimmerSpeed;let glowAlpha = 0.2+0.2*Math.sin(this.shimmerPhase*6);ctx.shadowColor = `rgba(100,220,180,${glowAlpha})`;ctx.shadowBlur=12;ctx.drawImage(this.canvasStone,this.x-this.size/2,this.y-this.size/2,this.size,this.size);ctx.shadowBlur=0;ctx.fillStyle = '#013c2a';ctx.font = 'bold 22px Comic Sans MS';ctx.textAlign = 'center';ctx.textBaseline = 'middle';ctx.fillText(this.value,this.x,this.y+2);}isTouched(x,y){return !this.collected && Math.hypot(x - this.x,y - this.y) < this.size;}class Game{constructor(){this.explorer = new Explorer();this.aliens = [];this.stones = [];this.currentQuestion = null;this.score = 0;this.awaitingAnswer = false;this.message = '';this.messageTimer = 0;this.backgroundImage = new Image();this.backgroundImage.src = 'https://i.ibb.co/GMb87fk/wacky-fantasy-land.png';this.stars=[];for(let i=0;i<80;i++){this.stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.4+0.4,alpha:Math.random(),dAlpha:Math.random()*0.01+0.002});}const mathQuestions = [{text:'Find 5 stones',target:5},{text:'Find 7 stones',target:7},{text:'Find 3 stones',target:3},{text:'Find 9 stones',target:9}];for(let i=0;i<4;i++){const q = mathQuestions[i];const x = 120 + i*150;const y = 80 + (i%2)*260;this.aliens.push(new FriendlyAlien(x,y,q));}for(let n=1;n<=9;n++){let x,y,valid;do{x = 60 + Math.random()*(W-120);y = 120 + Math.random()*(H-160);valid = true;for(let st of this.stones){if(Math.hypot(x - st.x,y - st.y) < 50) valid=false;}for(let al of this.aliens){if(Math.hypot(x - al.x,y - al.y) < 70) valid=false;}}while(!valid);this.stones.push(new NumberStone(x,y,n));}this.bindKeys();this.bindClicks();this.loop();}bindKeys(){window.addEventListener('keydown',e=>{if(e.key==='ArrowLeft' || e.key==='a'){this.explorer.dir.left=true;}if(e.key==='ArrowRight' || e.key==='d'){this.explorer.dir.right=true;}if(e.key==='ArrowUp' || e.key==='w'){this.explorer.dir.up=true;}if(e.key==='ArrowDown' || e.key==='s'){this.explorer.dir.down=true;}});window.addEventListener('keyup',e=>{if(e.key==='ArrowLeft' || e.key==='a'){this.explorer.dir.left=false;}if(e.key==='ArrowRight' || e.key==='d'){this.explorer.dir.right=false;}if(e.key==='ArrowUp' || e.key==='w'){this.explorer.dir.up=false;}if(e.key==='ArrowDown' || e.key==='s'){this.explorer.dir.down=false;}});}bindClicks(){canvas.addEventListener('click',e=>{const rect = canvas.getBoundingClientRect();const clickX = e.clientX - rect.left;const clickY = e.clientY - rect.top;if(this.awaitingAnswer){for(let stone of this.stones){if(stone.isTouched(clickX,clickY)){if(stone.value === this.currentQuestion.target){correctSound.currentTime=0;correctSound.play();stone.collected = true;this.score++;this.message = 'Great job! Stone collected!';this.messageTimer = 120;for(let alien of this.aliens){if(alien.question === this.currentQuestion) alien.answered = true;}this.awaitingAnswer = false;this.currentQuestion = null;}else{wrongSound.currentTime=0;wrongSound.play();this.message = 'Oops! That stone doesn\'t match the number.';this.messageTimer = 120;}}}}return;}for(let alien of this.aliens){if(alien.isTouched(clickX,clickY) && !alien.answered){this.currentQuestion = alien.question;this.awaitingAnswer = true;this.message = 'Find the stones with number '+this.currentQuestion.target+'. Click them!';this.messageTimer = 180;break;}}});}drawBackground(){ctx.fillStyle = '#1c2f2f';ctx.fillRect(0,0,W,H);for(let s of this.stars){s.alpha+=s.dAlpha;if(s.alpha>1){s.alpha=1;s.dAlpha*=-1;}else if(s.alpha<0.1){s.alpha=0.1;s.dAlpha*=-1;}ctx.beginPath();ctx.fillStyle = `rgba(255,255,230,${s.alpha})`;ctx.shadowColor = `rgba(255,255,230,${s.alpha*1.4})`;ctx.shadowBlur = 5;ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;}ctx.drawImage(this.backgroundImage,0,0,W,H);}drawHUD(){ctx.fillStyle = '#efefef';ctx.font = '28px Comic Sans MS';ctx.textAlign = 'left';ctx.shadowColor='rgba(0,0,0,0.4)';ctx.shadowBlur=4;ctx.fillText('Score: '+this.score, 15, 34);ctx.shadowBlur=0;if(this.awaitingAnswer && this.currentQuestion){ctx.fillStyle = '#ffc2d1';ctx.font = '24px Comic Sans MS';ctx.textAlign = 'center';ctx.shadowColor='rgba(255,182,193,0.8)';ctx.shadowBlur=5;ctx.fillText(this.message, W/2, 62);}else if(this.messageTimer > 0){ctx.fillStyle = '#ffb3c6';ctx.font = '22px Comic Sans MS';ctx.textAlign = 'center';ctx.shadowColor='rgba(255,180,200,0.7)';ctx.shadowBlur=4;ctx.fillText(this.message, W/2, 60);this.messageTimer--;}ctx.shadowBlur=0;ctx.fillStyle = '#d0e6d2';ctx.font = '18px Comic Sans MS';ctx.textAlign = 'left';ctx.fillText('Use arrow keys or WASD to move Explorer.',15,H-42);ctx.fillText('Click friendly aliens to get tasks!',15,H-20);}update(){this.explorer.update();}draw(){this.drawBackground();for(let alien of this.aliens){alien.draw();}for(let stone of this.stones){stone.draw();}this.explorer.draw();this.drawHUD();}loop(){this.update();this.draw();requestAnimationFrame(()=>this.loop());}}new Game();
+const gameContainer = document.getElementById('game-of-the-day-stage');
+gameContainer.innerHTML = '';
+gameContainer.style.width = '720px';
+gameContainer.style.height = '480px';
+gameContainer.style.position = 'relative';
+
+const canvas = document.createElement('canvas');
+canvas.width = 720;
+canvas.height = 480;
+canvas.setAttribute('role', 'img');
+canvas.setAttribute('aria-label', 'Math adventure game with a friendly explorer collecting shapes in an open world');
+gameContainer.appendChild(canvas);
+const ctx = canvas.getContext('2d');
+
+// Game state and config
+const gameWidth = canvas.width;
+const gameHeight = canvas.height;
+
+const explorer = {
+  x: gameWidth/2,
+  y: gameHeight/2,
+  radius: 20,
+  color: '#3a8baf',
+  speed: 4
+};
+
+const shapes = ['circle', 'square', 'triangle'];
+const shapeColors = ['#f08a5d', '#b83b5e', '#6a2c70'];
+const shapeSize = 30;
+
+let collectibleShapes = [];
+
+// Target math concept: Counting and addition
+// Narrative: Explorer finds wacky shapes in a calm island world and needs to collect correct amount of shapes to build a "math treasure".
+// Each shape has a hidden value (1, 2, 3), player collects shapes and answers quizzes about total values.
+
+// Friendly characters tied to theme:
+const characters = {
+  explorer: {
+    name: 'Ellie the Explorer',
+    description: 'A curious adventurer who loves discovering math treasures.'
+  },
+  guide: {
+    name: 'Wobbly the Wise Wombat',
+    description: 'Your funny, wacky guide who helps with questions and clues.'
+  }
+};
+
+// Audio context setup with error handling
+let audioCtx;
+try {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+} catch (e) {
+  audioCtx = null;
+  console.warn('Web Audio API not supported or failed to initialize.');
+}
+
+// Sounds helpers
+function playTone(freq, duration = 200, type = 'sine') {
+  if (!audioCtx) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration/1000);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration/1000);
+  } catch (e) {
+    // fail silently on audio errors
+  }
+}
+
+function playCorrectSound() {
+  playTone(600, 300, 'triangle');
+}
+
+function playWrongSound() {
+  playTone(200, 300, 'square');
+}
+
+function playBackgroundTone() {
+  if (!audioCtx) return null;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    return {osc, gain};
+  } catch {
+    return null;
+  }
+}
+
+// Visual calming background with gentle animation
+let bgWaves = [
+  {y: 430, amplitude: 10, frequency: 0.015, phase: 0},
+  {y: 450, amplitude: 12, frequency: 0.02, phase: 1},
+  {y: 470, amplitude: 8, frequency: 0.017, phase: 0.5}
+];
+
+// Keyboard state tracking for accessibility
+const keysPressed = {};
+
+// Player collected shapes and counting
+let collected = [];
+let question = null; // {text: string, correctAnswer: number}
+let showQuestion = false;
+let message = '';
+let messageTimeout = null;
+
+// Accessible text instructions
+const instructions = `Use arrow keys or WASD to move Ellie the Explorer.
+Collect colorful shapes by moving over them.
+After you collect shapes, answer the quiz by typing the number and pressing Enter.
+Press H for help anytime.`;
+
+// UI font
+const font = '20px Comic Sans MS, cursive, sans-serif';
+
+function drawBackground(time) {
+  ctx.fillStyle = '#c6f3f1';
+  ctx.fillRect(0, 0, gameWidth, gameHeight);
+
+  // Draw gentle ocean waves - wavy arcs
+  bgWaves.forEach((wave, idx) => {
+    ctx.beginPath();
+    ctx.strokeStyle = `rgba(60, 120, 150, 0.25)`;
+    ctx.lineWidth = 2;
+    for (let x = 0; x <= gameWidth; x += 10) {
+      const y = wave.y + wave.amplitude * Math.sin(wave.frequency * x + wave.phase + time*0.002);
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  });
+}
+
+// Draw Ellie the Explorer - round character with wacky hat and backpack, simple shapes
+function drawExplorer(x, y) {
+  // Body circle
+  ctx.fillStyle = explorer.color;
+  ctx.beginPath();
+  ctx.arc(x, y, explorer.radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes (white ovals)
+  ctx.fillStyle = 'white';
+  ctx.beginPath();
+  ctx.ellipse(x - 7, y - 5, 6, 9, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + 7, y - 5, 6, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pupils
+  ctx.fillStyle = '#30475e';
+  ctx.beginPath();
+  ctx.arc(x - 7, y - 2, 3, 0, Math.PI * 2);
+  ctx.arc(x + 7, y - 2, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Wacky explorer hat (green crooked triangle)
+  ctx.fillStyle = '#3d9b35';
+  ctx.beginPath();
+  ctx.moveTo(x - 20, y - 25);
+  ctx.lineTo(x + 20, y - 25);
+  ctx.lineTo(x, y - 50);
+  ctx.closePath();
+  ctx.fill();
+
+  // Backpack (orange oval)
+  ctx.fillStyle = '#f28c28';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 15, 18, 26, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Smile
+  ctx.strokeStyle = '#30475e';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, y + 5, 10, 0, Math.PI, false);
+  ctx.stroke();
+}
+
+// Draw shapes scattered on map
+function drawShape(shape) {
+  ctx.save();
+  ctx.translate(shape.x, shape.y);
+
+  // Draw shape's color
+  ctx.fillStyle = shape.color;
+  ctx.strokeStyle = '#2b2d42';
+  ctx.lineWidth = 3;
+
+  switch (shape.type) {
+    case 'circle':
+      ctx.beginPath();
+      ctx.arc(0, 0, shapeSize/2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    case 'square':
+      ctx.beginPath();
+      ctx.rect(-shapeSize/2, -shapeSize/2, shapeSize, shapeSize);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    case 'triangle':
+      ctx.beginPath();
+      ctx.moveTo(0, -shapeSize/2);
+      ctx.lineTo(shapeSize/2, shapeSize/2);
+      ctx.lineTo(-shapeSize/2, shapeSize/2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      break;
+  }
+  // Draw value number inside shape, cartoonish text
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 18px Comic Sans MS';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(shape.value, 0, 2);
+
+  ctx.restore();
+}
+
+// Wobbly the Wise Wombat - corner guide with speech bubble
+function drawGuide(text) {
+  const baseX = 640;
+  const baseY = 80;
+
+  // Body (brown oval)
+  ctx.fillStyle = '#8d6e63';
+  ctx.beginPath();
+  ctx.ellipse(baseX, baseY + 40, 30, 40, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head (lighter brown circle)
+  ctx.fillStyle = '#a1887f';
+  ctx.beginPath();
+  ctx.arc(baseX, baseY, 25, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes
+  ctx.fillStyle = 'white';
+  ctx.beginPath();
+  ctx.ellipse(baseX - 8, baseY - 5, 6, 9, 0, 0, Math.PI * 2);
+  ctx.ellipse(baseX + 8, baseY - 5, 6, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#4e342e';
+  ctx.beginPath();
+  ctx.arc(baseX - 8, baseY - 2, 3, 0, Math.PI * 2);
+  ctx.arc(baseX + 8, baseY - 2, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mouth (smile)
+  ctx.strokeStyle = '#4e342e';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(baseX, baseY + 10, 12, 0, Math.PI, false);
+  ctx.stroke();
+
+  // Speech bubble
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.strokeStyle = '#4e342e';
+  ctx.lineWidth = 2;
+  const bubbleX = baseX - 210;
+  const bubbleY = baseY - 70;
+  const bubbleWidth = 200;
+  const bubbleHeight = 70;
+  const radius = 15;
+
+  ctx.beginPath();
+  ctx.moveTo(bubbleX + radius, bubbleY);
+  ctx.lineTo(bubbleX + bubbleWidth - radius, bubbleY);
+  ctx.quadraticCurveTo(bubbleX + bubbleWidth, bubbleY, bubbleX + bubbleWidth, bubbleY + radius);
+  ctx.lineTo(bubbleX + bubbleWidth, bubbleY + bubbleHeight - radius);
+  ctx.quadraticCurveTo(bubbleX + bubbleWidth, bubbleY + bubbleHeight, bubbleX + bubbleWidth - radius, bubbleY + bubbleHeight);
+  ctx.lineTo(bubbleX + 70, bubbleY + bubbleHeight);
+  ctx.lineTo(bubbleX + 60, bubbleY + bubbleHeight + 15);
+  ctx.lineTo(bubbleX + 60, bubbleY + bubbleHeight);
+  ctx.lineTo(bubbleX + radius, bubbleY + bubbleHeight);
+  ctx.quadraticCurveTo(bubbleX, bubbleY + bubbleHeight, bubbleX, bubbleY + bubbleHeight - radius);
+  ctx.lineTo(bubbleX, bubbleY + radius);
+  ctx.quadraticCurveTo(bubbleX, bubbleY, bubbleX + radius, bubbleY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Text inside bubble
+  ctx.fillStyle = '#222222';
+  ctx.font = '16px Comic Sans MS';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  wrapText(ctx, text, bubbleX + 15, bubbleY + 15, bubbleWidth - 30, 20);
+}
+
+// Utility for multiline text in speech bubble
+function wrapText(context, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  let testLine;
+  let metrics;
+  let testWidth;
+  for (let n = 0; n < words.length; n++) {
+    testLine = line + words[n] + ' ';
+    metrics = context.measureText(testLine);
+    testWidth = metrics.width;
+    if (testWidth > maxWidth && n > 0) {
+      context.fillText(line, x, y);
+      line = words[n] + ' ';
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  context.fillText(line, x, y);
+}
+
+// Spawn shapes randomly, values meaning: circle=1, square=2, triangle=3
+function spawnShapes() {
+  collectibleShapes = [];
+  for (let i = 0; i < 7; i++) {
+    const typeIndex = Math.floor(Math.random() * shapes.length);
+    const type = shapes[typeIndex];
+    let value;
+    switch(type) {
+      case 'circle': value = 1; break;
+      case 'square': value = 2; break;
+      case 'triangle': value = 3; break;
+    }
+    const x = Math.random() * (gameWidth - 2*shapeSize) + shapeSize;
+    const y = Math.random() * (gameHeight - 2*shapeSize - 80) + 80; // leave space for guide
+    collectibleShapes.push({x, y, type, color: shapeColors[typeIndex], value, collected: false});
+  }
+}
+
+// Movement controls and collection detection
+function update() {
+  // Move explorer based on keys pressed
+  if (keysPressed.ArrowUp || keysPressed.KeyW) {
+    explorer.y -= explorer.speed;
+    if (explorer.y - explorer.radius < 0) explorer.y = explorer.radius;
+  }
+  if (keysPressed.ArrowDown || keysPressed.KeyS) {
+    explorer.y += explorer.speed;
+    if (explorer.y + explorer.radius > gameHeight) explorer.y = gameHeight - explorer.radius;
+  }
+  if (keysPressed.ArrowLeft || keysPressed.KeyA) {
+    explorer.x -= explorer.speed;
+    if (explorer.x - explorer.radius < 0) explorer.x = explorer.radius;
+  }
+  if (keysPressed.ArrowRight || keysPressed.KeyD) {
+    explorer.x += explorer.speed;
+    if (explorer.x + explorer.radius > gameWidth) explorer.x = gameWidth - explorer.radius;
+  }
+
+  // Check collection
+  collectibleShapes.forEach(shape => {
+    if (!shape.collected) {
+      const dx = explorer.x - shape.x;
+      const dy = explorer.y - shape.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < explorer.radius + shapeSize/2 - 5) {
+        shape.collected = true;
+        collected.push(shape.value);
+        playCorrectSound();
+      }
+    }
+  });
+
+  // When enough shapes collected, show question
+  if (!showQuestion && collected.length >= 3) {
+    createQuestion();
+    showQuestion = true;
+    message = 'Type the answer and press Enter';
+  }
+}
+
+// Create a math question about sum of collected shapes
+function createQuestion() {
+  const sum = collected.reduce((acc, v) => acc + v, 0);
+  question = {
+    text: `Ellie collected shapes worth these numbers: ${collected.join(', ')}. What is the total?`,
+    correctAnswer: sum
+  };
+}
+
+// Drawing the collected shapes in HUD bar
+function drawCollectedShapes() {
+  ctx.fillStyle = '#333333cc';
+  ctx.fillRect(0, 0, gameWidth, 60);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '18px Comic Sans MS';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('Collected shapes:', 12, 6);
+
+  collected.forEach((val, i) => {
+    const x = 150 + i * 40;
+    const y = 30;
+    ctx.fillStyle = '#d1e7dd';
+    ctx.strokeStyle = '#0f5132';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#0f5132';
+    ctx.font = 'bold 16px Comic Sans MS';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(val, x, y);
+  });
+}
+
+// Draw input box and current answer being typed
+let userInput = '';
+
+function drawInputBox() {
+  if (!showQuestion) return;
+  const boxX = 100;
+  const boxY = 420;
+  const boxW = 520;
+  const boxH = 50;
+
+  ctx.fillStyle = '#ffffffdd';
+  ctx.strokeStyle = '#30475e';
+  ctx.lineWidth = 3;
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+  ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+  ctx.fillStyle = '#30475e';
+  ctx.font = '24px Comic Sans MS';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Your answer: ' + userInput, boxX + 15, boxY + boxH / 2);
+
+  // Accessibility text alternative
+  canvas.setAttribute('aria-live', 'polite');
+  // No direct text input aria support on canvas; guided by on-screen text and instructions
+}
+
+// Draw messages center screen
+function drawMessage() {
+  if (!message) return;
+  ctx.fillStyle = 'rgba(255 255 255 / 0.85)';
+  ctx.strokeStyle = '#30475e';
+  ctx.lineWidth = 4;
+  const w = 400;
+  const h = 90;
+  const x = (gameWidth - w) / 2;
+  const y = gameHeight / 2 - h / 2;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeRect(x, y, w, h);
+
+  ctx.fillStyle = '#30475e';
+  ctx.font = '22px Comic Sans MS';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(message, x + w/2, y + h/2);
+}
+
+// Animation loop
+let startTime = null;
+let bgTone = playBackgroundTone();
+
+function gameLoop(timestamp) {
+  if (!startTime) startTime = timestamp;
+  const elapsed = timestamp - startTime;
+
+  update();
+  drawBackground(elapsed);
+
+  drawCollectedShapes();
+  collectibleShapes.forEach(shape => {
+    if (!shape.collected) drawShape(shape);
+  });
+
+  drawExplorer(explorer.x, explorer.y);
+  if (showQuestion) {
+    drawInputBox();
+    drawMessage();
+  }
+
+  drawGuide(showQuestion ? question.text : `Hello, I'm Wobbly! Find shapes and collect their numbers. Then answer the math puzzle!`);
+
+  requestAnimationFrame(gameLoop);
+}
+
+// Keyboard events for controls
+window.addEventListener('keydown', e => {
+  if (e.repeat) return;
+  const k = e.code;
+  keysPressed[k] = true;
+
+  // If question visible, handle input keys
+  if (showQuestion) {
+    if (k === 'Enter') {
+      // Check answer validity (only digits)
+      if (/^\d+$/.test(userInput)) {
+        const userAnswer = parseInt(userInput);
+        if (userAnswer === question.correctAnswer) {
+          message = 'Correct! Well done!';
+          playCorrectSound();
+          resetGameAfterDelay();
+        } else {
+          message = 'Oops, try again!';
+          playWrongSound();
+        }
+      } else {
+        message = 'Please enter a number!';
+        playWrongSound();
+      }
+      userInput = '';
+      e.preventDefault();
+    } else if (k === 'Backspace') {
+      e.preventDefault();
+      userInput = userInput.slice(0, -1);
+    } else if (/Digit[0-9]/.test(k) || /^[0-9]$/.test(e.key)) {
+      if (userInput.length < 3) {
+        userInput += e.key;
+      }
+      e.preventDefault();
+    }
+  } else {
+    // Show instructions on H
+    if (k === 'KeyH') {
+      message = instructions;
+      if (messageTimeout) clearTimeout(messageTimeout);
+      messageTimeout = setTimeout(() => message = '', 10000);
+    }
+  }
+});
+
+window.addEventListener('keyup', e => {
+  keysPressed[e.code] = false;
+});
+
+function resetGameAfterDelay() {
+  setTimeout(() => {
+    collected = [];
+    userInput = '';
+    showQuestion = false;
+    message = '';
+    spawnShapes();
+  }, 4000);
+}
+
+// Init game
+spawnShapes();
+message = instructions;
+messageTimeout = setTimeout(() => message = '', 10000);
+requestAnimationFrame(gameLoop);
