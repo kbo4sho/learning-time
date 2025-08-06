@@ -12,9 +12,6 @@ stage.appendChild(canvas);
 const ctx = canvas.getContext('2d');
 
 // Game state
-let assetsLoaded = false;
-let audioInitialized = false;
-let bgMusic, correctSound, wrongSound;
 let gameStarted = false;
 
 // World configuration
@@ -67,9 +64,9 @@ let greetingIndex = 0;
 let explorerPulse = 0;
 let pulseDirection = 1;
 
-// Background particles
+// Background particles (simplified)
 const bgParticles = [];
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < 20; i++) {
     bgParticles.push({
         x: Math.random() * w,
         y: Math.random() * h,
@@ -77,83 +74,6 @@ for (let i = 0; i < 30; i++) {
         speed: Math.random() * 0.3 + 0.1,
         alpha: Math.random() * 0.6 + 0.2
     });
-}
-
-// Audio management with proper initialization
-function initAudio() {
-    if (audioInitialized) return;
-    
-    try {
-        // Create simple audio using Web Audio API for better compatibility
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        // Create background music (simple tone)
-        const bgOsc = audioContext.createOscillator();
-        const bgGain = audioContext.createGain();
-        bgOsc.connect(bgGain);
-        bgGain.connect(audioContext.destination);
-        bgOsc.type = 'sine';
-        bgOsc.frequency.value = 220;
-        bgGain.gain.value = 0.02;
-        bgOsc.start();
-        
-        // Create correct sound
-        const correctOsc = audioContext.createOscillator();
-        const correctGain = audioContext.createGain();
-        correctOsc.connect(correctGain);
-        correctGain.connect(audioContext.destination);
-        correctOsc.type = 'sine';
-        correctOsc.frequency.value = 800;
-        correctGain.gain.value = 0.1;
-        
-        // Create wrong sound
-        const wrongOsc = audioContext.createOscillator();
-        const wrongGain = audioContext.createGain();
-        wrongOsc.connect(wrongGain);
-        wrongGain.connect(audioContext.destination);
-        wrongOsc.type = 'square';
-        wrongOsc.frequency.value = 200;
-        wrongGain.gain.value = 0.1;
-        
-        // Store audio objects
-        bgMusic = { osc: bgOsc, gain: bgGain };
-        correctSound = { osc: correctOsc, gain: correctGain };
-        wrongSound = { osc: wrongOsc, gain: wrongGain };
-        
-        audioInitialized = true;
-        assetsLoaded = true;
-        console.log("Audio initialized successfully");
-        
-    } catch (error) {
-        console.warn("Failed to initialize audio:", error);
-        // Fallback: continue without audio
-        assetsLoaded = true;
-    }
-}
-
-function playSound(sound) {
-    if (!audioInitialized || !sound) return;
-    
-    try {
-        // Create a temporary oscillator for the sound
-        const audioContext = sound.osc.context;
-        const tempOsc = audioContext.createOscillator();
-        const tempGain = audioContext.createGain();
-        
-        tempOsc.connect(tempGain);
-        tempGain.connect(audioContext.destination);
-        
-        tempOsc.type = sound.osc.type;
-        tempOsc.frequency.value = sound.osc.frequency.value;
-        tempGain.gain.setValueAtTime(sound.gain.gain.value, audioContext.currentTime);
-        tempGain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
-        
-        tempOsc.start();
-        tempOsc.stop(audioContext.currentTime + 0.3);
-        
-    } catch (error) {
-        console.warn("Failed to play sound:", error);
-    }
 }
 
 function drawBackground() {
@@ -352,7 +272,6 @@ function chooseTask() {
 function checkAnswer() {
     if (userAnswer === mathZone.task.answer) {
         score += 1;
-        playSound(correctSound);
         mathZone.answered = true;
         setTimeout(() => {
             exploring = true;
@@ -360,14 +279,11 @@ function checkAnswer() {
             greetingIndex = 0;
         }, 1500);
     } else {
-        playSound(wrongSound);
         userAnswer = '';
     }
 }
 
 function update() {
-    if (!assetsLoaded) return;
-    
     if (exploring) {
         // Handle movement
         if (keys['ArrowLeft'] && explorer.x > 0) {
@@ -421,11 +337,6 @@ function draw() {
 
 // Event listeners
 window.addEventListener('keydown', e => {
-    // Initialize audio on first key press
-    if (!audioInitialized) {
-        initAudio();
-    }
-    
     keys[e.key] = true;
     
     if (!exploring && mathZone.task) {
