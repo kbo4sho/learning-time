@@ -105,8 +105,8 @@ def validate_no_external_dependencies(code):
     }
 
 # Configuration variables
-MODEL_NAME = "gpt-4.1-mini" 
-THEME_OF_THE_DAY = "open world exploration"
+MODEL_NAME = "gpt-5-mini" 
+THEME_OF_THE_DAY = "electricity"
 ACCESSIBILITY_THRESHOLD = 60  # Minimum accessibility score required
 
 # Load your OpenAI API key from GitHub Secrets or environment
@@ -144,7 +144,7 @@ response = client.responses.create(
 )
 
 # Step 2: Extract the assistant's reply
-response_text = response.output[0].content[0].text
+response_text = response.output_text
 
 # Strip markdown code blocks if present
 response_text = strip_code_blocks(response_text)
@@ -191,7 +191,7 @@ The game must:
         model=MODEL_NAME,
         input=[{"role": "user", "content": dependency_fix_prompt}]
     )
-    fixed_dependency_code = dependency_fix_response.output[0].content[0].text
+    fixed_dependency_code = dependency_fix_response.output_text
     
     # Strip markdown code blocks from fixed code
     fixed_dependency_code = strip_code_blocks(fixed_dependency_code)
@@ -249,7 +249,7 @@ The game must:
         model=MODEL_NAME,
         input=[{"role": "user", "content": functionality_improve_prompt}]
     )
-    improved_functionality_code = functionality_improve_response.output[0].content[0].text
+    improved_functionality_code = functionality_improve_response.output_text
     
     # Strip markdown code blocks from improved code
     improved_functionality_code = strip_code_blocks(improved_functionality_code)
@@ -384,7 +384,7 @@ improve_response = client.responses.create(
     model=MODEL_NAME,
     input=[{"role": "user", "content": improve_prompt}]
 )
-improved_code = improve_response.output[0].content[0].text
+improved_code = improve_response.output_text
 
 # Strip markdown code blocks if present
 improved_code = strip_code_blocks(improved_code)
@@ -414,7 +414,7 @@ formatting_response = client.responses.create(
     model=MODEL_NAME,
     input=[{"role": "user", "content": formatting_prompt}]
 )
-formatted_code = formatting_response.output[0].content[0].text
+formatted_code = formatting_response.output_text
 
 # Strip markdown code blocks from formatted code as well
 formatted_code = strip_code_blocks(formatted_code)

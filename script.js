@@ -5,6 +5,289 @@ document.addEventListener('keydown', function (e) {
     }
 });
 
+// Global audio management: ensure previous games' audio never continues after switching
+(() => {
+  try {
+    // Create a registry to track and disable AudioContexts created by games
+    const originalAudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!originalAudioContext) return; // Nothing to patch on very old browsers
+
+    const disabledContexts = new WeakSet();
+    const activeContexts = new Set();
+    const activeMediaEls = new Set();
+
+    // Expose cleanup so loader can silence all previous game audio
+    window.__cleanupAllGameAudio = async function cleanupAllGameAudio() {
+      try {
+        const ops = [];
+        activeContexts.forEach((ctx) => {
+          try {
+            // Mark as disabled first so any future resume() calls no-op
+            disabledContexts.add(ctx);
+            // Suspend to silence immediately without tearing down graphs
+            ops.push(Promise.resolve().then(() => ctx.suspend()).catch(() => {}));
+          } catch (_) {}
+        });
+        await Promise.allSettled(ops);
+        // Also pause/rewind any HTML media elements that were played
+        activeMediaEls.forEach((el) => {
+          try {
+            el.pause();
+            el.currentTime = 0;
+          } catch (_) {}
+        });
+      } catch (_) {}
+    };
+
+    // Wrapper constructor that registers each created context
+    function PatchedAudioContext(...args) {
+      const Ctor = originalAudioContext; // AudioContext
+      const ctx = new Ctor(...args);
+      activeContexts.add(ctx);
+      // Harden resume/close per instance
+      try {
+        const originalResume = ctx.resume && ctx.resume.bind(ctx);
+        if (originalResume) {
+          ctx.resume = function() {
+            if (disabledContexts.has(ctx)) return Promise.resolve();
+            return originalResume();
+          };
+        }
+      } catch (_) {}
+      try {
+        const originalClose = ctx.close && ctx.close.bind(ctx);
+        if (originalClose) {
+          ctx.close = function() {
+            disabledContexts.add(ctx);
+            activeContexts.delete(ctx);
+            return originalClose();
+          };
+        }
+      } catch (_) {}
+      return ctx;
+    }
+
+    // Patch global constructors
+    if (window.AudioContext) {
+      window.AudioContext = PatchedAudioContext;
+    }
+    if (window.webkitAudioContext) {
+      window.webkitAudioContext = PatchedAudioContext;
+    }
+
+    // Patch HTMLMediaElement play/pause to track any media used by games (defensive)
+    try {
+      const HME = window.HTMLMediaElement && window.HTMLMediaElement.prototype;
+      if (HME) {
+        const originalPlay = HME.play;
+        const originalPause = HME.pause;
+        if (originalPlay) {
+          HME.play = function() {
+            try { activeMediaEls.add(this); } catch (_) {}
+            return originalPlay.apply(this, arguments);
+          };
+        }
+        if (originalPause) {
+          HME.pause = function() {
+            try { activeMediaEls.delete(this); } catch (_) {}
+            return originalPause.apply(this, arguments);
+          };
+        }
+      }
+    } catch (_) {}
+
+    // Patch resume so disabled contexts cannot be resumed by old game listeners
+    const resumeProto = originalAudioContext && originalAudioContext.prototype && originalAudioContext.prototype.resume;
+    if (resumeProto) {
+      const patchedResume = function () {
+        if (disabledContexts.has(this)) {
+          // Pretend resume succeeded, but keep it silent
+          return Promise.resolve();
+        }
+        return resumeProto.apply(this, arguments);
+      };
+      // Assign on the real prototype so existing contexts are covered
+      try { originalAudioContext.prototype.resume = patchedResume; } catch (_) {}
+    }
+
+    // Optional: when page unloads, silence everything
+    window.addEventListener('beforeunload', () => {
+      try { window.__cleanupAllGameAudio && window.__cleanupAllGameAudio(); } catch (_) {}
+    });
+
+    // Provide a general game cleanup hook caller
+    window.__cleanupCurrentGame = async function cleanupCurrentGame() {
+      try {
+        // Invalidate any previously scheduled RAF/timeouts tied to old game
+        try { window.__advanceRafGeneration && window.__advanceRafGeneration(); } catch (_) {}
+        // Call per-game cleanup if provided
+        if (typeof window.__currentGameCleanup === 'function') {
+          try { await window.__currentGameCleanup(); } catch (_) {}
+        }
+      } catch (_) {}
+      // Always silence audio contexts from any prior games
+      try { await window.__cleanupAllGameAudio(); } catch (_) {}
+      // Clear the stage to remove any lingering canvases/elements
+      try {
+        const stage = document.getElementById('game-of-the-day-stage');
+        if (stage) stage.innerHTML = '';
+      } catch (_) {}
+      // Reset hook
+      window.__currentGameCleanup = null;
+    };
+  } catch (_) {
+    // Best-effort only
+  }
+})();
+
+// Defensive canvas patch: clamp gradient color stops to [0,1] to avoid IndexSizeError
+(() => {
+  try {
+    const CG = window.CanvasGradient && window.CanvasGradient.prototype;
+    if (CG && typeof CG.addColorStop === 'function') {
+      const originalAddColorStop = CG.addColorStop;
+      CG.addColorStop = function(offset, color) {
+        let o = Number(offset);
+        if (!Number.isFinite(o)) o = 0;
+        if (o < 0) o = 0;
+        if (o > 1) o = 1;
+        return originalAddColorStop.call(this, o, color);
+      };
+    }
+  } catch (_) { /* noop */ }
+})();
+
+// Global resource capture to auto-clean event listeners, timers, rafs installed by games
+(() => {
+  const originalAdd = EventTarget.prototype.addEventListener;
+  const originalRemove = EventTarget.prototype.removeEventListener;
+  const originalSetTimeout = window.setTimeout;
+  const originalClearTimeout = window.clearTimeout;
+  const originalSetInterval = window.setInterval;
+  const originalClearInterval = window.clearInterval;
+  const originalRAF = window.requestAnimationFrame;
+  const originalCancelRAF = window.cancelAnimationFrame;
+
+  let captureMode = false;
+  let capturedListeners = [];
+  let capturedTimeouts = [];
+  let capturedIntervals = [];
+  let capturedRAFs = [];
+
+  // Generation guard: invalidate ongoing animation/interval loops when switching games
+  window.__rafGeneration = 0;
+  window.__advanceRafGeneration = function() {
+    window.__rafGeneration = (window.__rafGeneration || 0) + 1;
+  };
+
+  // Monkey-patch to record only during capture
+  EventTarget.prototype.addEventListener = function(type, listener, options) {
+    if (captureMode && listener) {
+      capturedListeners.push({ target: this, type, listener, options });
+    }
+    return originalAdd.call(this, type, listener, options);
+  };
+
+  EventTarget.prototype.removeEventListener = function(type, listener, options) {
+    // Best-effort: also remove from captured list if present
+    if (listener) {
+      capturedListeners = capturedListeners.filter(
+        (rec) => !(rec.target === this && rec.type === type && rec.listener === listener)
+      );
+    }
+    return originalRemove.call(this, type, listener, options);
+  };
+
+  window.setTimeout = function(handler, timeout, ...args) {
+    const genAtSchedule = window.__rafGeneration || 0;
+    const wrapped = function() {
+      if ((window.__rafGeneration || 0) !== genAtSchedule) return;
+      if (typeof handler === 'function') return handler.apply(this, arguments);
+      try { return eval(handler); } catch (_) { return undefined; }
+    };
+    const id = originalSetTimeout(wrapped, timeout, ...args);
+    if (captureMode) capturedTimeouts.push(id);
+    return id;
+  };
+
+  window.clearTimeout = function(id) {
+    capturedTimeouts = capturedTimeouts.filter((x) => x !== id);
+    return originalClearTimeout(id);
+  };
+
+  window.setInterval = function(handler, timeout, ...args) {
+    const genAtSchedule = window.__rafGeneration || 0;
+    const wrapped = function() {
+      if ((window.__rafGeneration || 0) !== genAtSchedule) return;
+      if (typeof handler === 'function') return handler.apply(this, arguments);
+      try { return eval(handler); } catch (_) { return undefined; }
+    };
+    const id = originalSetInterval(wrapped, timeout, ...args);
+    if (captureMode) capturedIntervals.push(id);
+    return id;
+  };
+
+  window.clearInterval = function(id) {
+    capturedIntervals = capturedIntervals.filter((x) => x !== id);
+    return originalClearInterval(id);
+  };
+
+  window.requestAnimationFrame = function(callback) {
+    const genAtSchedule = window.__rafGeneration || 0;
+    const wrapped = function(ts) {
+      if ((window.__rafGeneration || 0) !== genAtSchedule) return; // do not invoke old-game frame
+      return callback(ts);
+    };
+    const id = originalRAF(wrapped);
+    if (captureMode) capturedRAFs.push(id);
+    return id;
+  };
+
+  window.cancelAnimationFrame = function(id) {
+    capturedRAFs = capturedRAFs.filter((x) => x !== id);
+    return originalCancelRAF(id);
+  };
+
+  window.__beginCaptureGameResources = function() {
+    capturedListeners = [];
+    capturedTimeouts = [];
+    capturedIntervals = [];
+    capturedRAFs = [];
+    captureMode = true;
+  };
+
+  window.__endCaptureGameResources = function() {
+    captureMode = false;
+    // Snapshot arrays for this game instance
+    return {
+      listeners: capturedListeners.slice(),
+      timeouts: capturedTimeouts.slice(),
+      intervals: capturedIntervals.slice(),
+      rafs: capturedRAFs.slice(),
+    };
+  };
+
+  window.__registerCleanupForSnapshot = function(snapshot) {
+    window.__currentGameCleanup = async function() {
+      try {
+        // Remove event listeners
+        if (snapshot && snapshot.listeners) {
+          snapshot.listeners.forEach(({ target, type, listener, options }) => {
+            try { originalRemove.call(target, type, listener, options); } catch (_) {}
+          });
+        }
+        // Clear timers
+        if (snapshot && snapshot.timeouts) snapshot.timeouts.forEach((id) => { try { originalClearTimeout(id); } catch (_) {} });
+        if (snapshot && snapshot.intervals) snapshot.intervals.forEach((id) => { try { originalClearInterval(id); } catch (_) {} });
+        // Cancel RAFs
+        if (snapshot && snapshot.rafs) snapshot.rafs.forEach((id) => { try { originalCancelRAF(id); } catch (_) {} });
+      } catch (_) {}
+      // Silence any audio contexts lingering
+      try { await window.__cleanupAllGameAudio(); } catch (_) {}
+    };
+  };
+})();
+
 // Move the game canvas into the stage area if it is created by the JS
 window.addEventListener('DOMContentLoaded', function () {
     const stage = document.getElementById('game-of-the-day-stage');
@@ -29,6 +312,8 @@ window.addEventListener('DOMContentLoaded', function () {
     const today = new Date();
     const todayString = today.toISOString().split('T')[0];
     setDateMessage(todayString);
+    // Auto-load today's game
+    try { loadTodaysGame(); } catch (e) { console.error('Failed to auto-load today\'s game:', e); }
 });
 
 // Daily Games functionality
@@ -144,7 +429,11 @@ function loadDailyGame(dateString) {
     // Add a date message below the subtitle
     setDateMessage(dateString);
 
-    // Clear the current game stage
+    // Clean up any currently running game (audio, etc.)
+    if (window.__cleanupCurrentGame) {
+        window.__cleanupCurrentGame();
+    }
+    // Show loading
     gameStage.innerHTML = '<div class="loading">Loading game...</div>';
     
     // Remove any existing game scripts
@@ -198,12 +487,22 @@ function loadDailyGame(dateString) {
                     })();
                 `;
                 
+                // Begin resource capture so we can clean this game later
+                if (window.__advanceRafGeneration) window.__advanceRafGeneration();
+                if (window.__beginCaptureGameResources) window.__beginCaptureGameResources();
+
                 // Create a new script element with the wrapped content
                 const script = document.createElement('script');
                 script.textContent = wrappedScript;
                 
                 // Execute the script
                 document.head.appendChild(script);
+
+                // Finalize capture and register cleanup
+                if (window.__endCaptureGameResources && window.__registerCleanupForSnapshot) {
+                    const snapshot = window.__endCaptureGameResources();
+                    window.__registerCleanupForSnapshot(snapshot);
+                }
             })
             .catch(error => {
                 console.error(`Failed to load daily game: ${dateString}`, error);
@@ -253,6 +552,10 @@ function loadTodaysGame() {
     const existingDateMsg = document.querySelector('.date-message');
     if (existingDateMsg) existingDateMsg.remove();
 
+    // Clean up any currently running game (audio, etc.)
+    if (window.__cleanupCurrentGame) {
+        window.__cleanupCurrentGame();
+    }
     // Clear the current game stage
     gameStage.innerHTML = '';
     
@@ -283,12 +586,22 @@ function loadTodaysGame() {
                 })();
             `;
             
+            // Begin resource capture so we can clean this game later
+            if (window.__advanceRafGeneration) window.__advanceRafGeneration();
+            if (window.__beginCaptureGameResources) window.__beginCaptureGameResources();
+
             // Create a new script element with the wrapped content
             const script = document.createElement('script');
             script.textContent = wrappedScript;
             
             // Execute the script
             document.head.appendChild(script);
+
+            // Finalize capture and register cleanup
+            if (window.__endCaptureGameResources && window.__registerCleanupForSnapshot) {
+                const snapshot = window.__endCaptureGameResources();
+                window.__registerCleanupForSnapshot(snapshot);
+            }
         })
         .catch(error => {
             console.error('Failed to load today\'s game', error);
