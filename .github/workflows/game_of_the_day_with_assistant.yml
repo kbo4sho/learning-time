@@ -1,8 +1,6 @@
 name: Generate Game of the Day with Assistant
 
 on:
-  schedule:
-    - cron: '0 0 * * *'  # every day at midnight UTC
   workflow_dispatch:      # allows manual triggering from GitHub UI
 
 jobs:
